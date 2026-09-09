@@ -1,0 +1,109 @@
+.admin-container {
+  max-width: 1000px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+}
+
+.page-header {
+  margin-bottom: 2rem;
+}
+
+.page-header h1 {
+  font-size: 2rem;
+  margin-bottom: 0.25rem;
+}
+
+.subtitle {
+  color: var(--text-secondary, #665A5D);
+}
+
+.header-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+.user-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.user-table th {
+  padding: 0.9rem 1rem;
+  background: var(--bg-cream-base, #F7F3EB);
+  color: var(--color-bordo, #7A001E);
+  font-family: var(--font-heading, 'Cinzel', serif);
+  font-weight: 700;
+  border-bottom: 2px solid var(--color-gold, #D4AF37);
+}
+
+.user-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.badge-role {
+  background: rgba(122, 0, 30, 0.1);
+  color: var(--color-bordo);
+}
+
+.btn-sm {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+.btn-activate {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.btn-deactivate {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.alert {
+  padding: 0.9rem 1.2rem;
+  border-radius: var(--radius-sm, 8px);
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.alert-success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.role-select {
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--color-gold, #D4AF37);
+  background: var(--bg-cream-base, #F7F3EB);
+  color: var(--color-bordo, #7A001E);
+  font-weight: 600;
+  font-size: 0.85rem;
+  box-shadow: var(--neu-shadow-inset);
+  outline: none;
+}
+
+.role-select:focus {
+  border-color: var(--color-bordo, #7A001E);
+}
+
+.self-tag {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary, #665A5D);
+  font-style: italic;
+}

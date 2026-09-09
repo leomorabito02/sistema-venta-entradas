@@ -1,0 +1,350 @@
+<section class="tickets-container">
+  <!-- Header -->
+  <div class="tickets-header">
+    <div>
+      <h1>Gestión e Historial de Bonos / Tickets</h1>
+      <p class="subtitle">Consulta general, filtrado multinivel y anulación de entradas emitidas</p>
+    </div>
+    <div class="header-actions">
+      <button class="neu-btn neu-btn-bordo" (click)="loadData()" [disabled]="loading()">
+        <span *ngIf="loading()" class="neu-spinner"></span>
+        <span>Refrescar Lista</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Banners de Notificación -->
+  <div *ngIf="successMessage()" class="alert alert-success">
+    <svg class="icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> {{ successMessage() }}
+  </div>
+  <div *ngIf="errorMessage()" class="alert alert-danger">
+    <svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {{ errorMessage() }}
+  </div>
+
+  <!-- Panel de Filtros Combinados -->
+  <div class="neu-card filter-panel">
+    <div class="filter-row-top">
+      <div class="search-box">
+        <label for="ticketSearch"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Búsqueda Rápida:</label>
+        <input
+          id="ticketSearch"
+          type="text"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+          placeholder="Buscar por 4 dígitos, # bono, comprador o vendedor..."
+          class="neu-input"
+        />
+      </div>
+
+      <button class="neu-btn" (click)="clearFilters()">
+        Limpiar Filtros
+      </button>
+    </div>
+
+    <div class="filter-grid">
+      <!-- Filtro por Estado -->
+      <div class="filter-group">
+        <label for="statusFilter">Estado del Ticket:</label>
+        <select
+          id="statusFilter"
+          [ngModel]="statusFilter()"
+          (ngModelChange)="statusFilter.set($event)"
+          class="neu-input select-control"
+        >
+          <option value="ALL">Todos los Estados</option>
+          <option value="VENDIDO">VENDIDO</option>
+          <option value="USADO_ENTRADA">USADO ENTRADA</option>
+          <option value="USADO_COMIDA">USADO COMIDA</option>
+          <option value="ANULADO">ANULADO</option>
+        </select>
+      </div>
+
+      <!-- Filtro por Tipo de Entrada -->
+      <div class="filter-group">
+        <label for="typeFilter">Tipo de Entrada:</label>
+        <select
+          id="typeFilter"
+          [ngModel]="ticketTypeFilter()"
+          (ngModelChange)="ticketTypeFilter.set($event)"
+          class="neu-input select-control"
+        >
+          <option value="ALL">Todos los Tipos</option>
+          <option value="SIMPLE">SIMPLE</option>
+          <option value="CON_COMIDA">CON COMIDA</option>
+        </select>
+      </div>
+
+      <!-- Filtro por Origen / Canal de Venta -->
+      <div class="filter-group">
+        <label for="sourceFilter">Origen de Venta:</label>
+        <select
+          id="sourceFilter"
+          [ngModel]="saleSourceFilter()"
+          (ngModelChange)="saleSourceFilter.set($event)"
+          class="neu-input select-control"
+        >
+          <option value="ALL">Todos los Canales</option>
+          <option value="ANTICIPADA">ANTICIPADA</option>
+          <option value="PUERTA">PUERTA</option>
+        </select>
+      </div>
+
+      <!-- Filtro por Vendedor (Admin o Selector) -->
+      <div class="filter-group" *ngIf="authService.isAdmin()">
+        <label for="sellerFilter">Vendedor:</label>
+        <select
+          id="sellerFilter"
+          [ngModel]="sellerFilter()"
+          (ngModelChange)="sellerFilter.set($event)"
+          class="neu-input select-control"
+        >
+          <option value="ALL">Todos los Vendedores</option>
+          <option *ngFor="let u of users()" [value]="u.id">
+            {{ u.name }} ({{ u.email }})
+          </option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Barra de Estado de Filtros y Totales -->
+    <div class="filter-stats-bar">
+      <span>
+        Mostrando <strong>{{ totalFilteredCount() }}</strong> de <strong>{{ tickets().length }}</strong> bonos registrados
+      </span>
+      <span>
+        Recaudación Filtrada: <strong class="text-success">${{ totalFilteredRevenue() | number:'1.2-2' }}</strong>
+      </span>
+    </div>
+  </div>
+
+  <!-- Loader -->
+  <div *ngIf="loading()" class="loading-state">
+    <div class="spinner"></div>
+    <p>Cargando lista completa de tickets...</p>
+  </div>
+
+  <!-- Tabla de Tickets -->
+  <div *ngIf="!loading() && filteredTickets().length === 0" class="neu-card empty-card">
+    <p>No se encontraron tickets que coincidan con la combinación de filtros seleccionada.</p>
+    <button class="neu-btn" (click)="clearFilters()">Restablecer Filtros</button>
+  </div>
+
+  <div *ngIf="!loading() && filteredTickets().length > 0" class="neu-card table-responsive">
+    <table class="tickets-table">
+      <thead>
+        <tr>
+          <th># Bono</th>
+          <th>Código 4 Digs</th>
+          <th>Comprador</th>
+          <th>Vendedor</th>
+          <th>Tipo</th>
+          <th>Origen / Cuota</th>
+          <th>Monto</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let t of filteredTickets()">
+          <td>
+            <strong>#{{ t.ticketNumber || t.id.slice(0, 6) }}</strong>
+          </td>
+          <td>
+            <span class="code-chip">{{ t.fourDigitCode || (t.publicToken ? t.publicToken.slice(0, 4) : 'N/A') }}</span>
+          </td>
+          <td>
+            <div class="buyer-info">
+              <strong>{{ t.buyerName || 'Cliente General' }}</strong>
+            </div>
+          </td>
+          <td>
+            <span class="seller-label">{{ t.sellerName || 'Sistema / Vendedor' }}</span>
+          </td>
+          <td>
+            <span
+              class="badge"
+              [class.badge-simple]="t.ticketType === 'SIMPLE'"
+              [class.badge-comida]="t.ticketType === 'CON_COMIDA'"
+            >
+              {{ t.ticketType === 'CON_COMIDA' ? 'CON COMIDA' : 'SIMPLE' }}
+            </span>
+          </td>
+          <td>
+            <div class="source-info">
+              <span class="badge badge-source">
+                {{ t.saleSource === 'ANTICIPADA' ? 'ANTICIPADA' : 'PUERTA' }}
+              </span>
+              <span *ngIf="t.quotaSource" class="quota-tag" [class.personal]="t.quotaSource === 'PERSONAL'" [class.libre]="t.quotaSource === 'LIBRE'">
+                {{ t.quotaSource }}
+              </span>
+            </div>
+          </td>
+          <td>
+            <strong>${{ t.pricePaid | number:'1.2-2' }}</strong>
+          </td>
+          <td>
+            <span
+              class="neu-badge"
+              [ngClass]="{
+                'neu-badge-vendido': t.status === 'VENDIDO',
+                'neu-badge-usado': t.status === 'USADO_ENTRADA' || t.status === 'USADO_COMIDA',
+                'neu-badge-anulado': t.status === 'ANULADO'
+              }"
+            >
+              {{ t.status }}
+            </span>
+          </td>
+          <td>
+            <div class="action-buttons">
+              <button class="neu-btn" (click)="openDetail(t)" title="Ver Detalle del Bono">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Ver
+              </button>
+              <button
+                *ngIf="t.status !== 'ANULADO'"
+                class="neu-btn btn-annul"
+                (click)="openAnnulModal(t)"
+                title="Anular bono y devolver cupo de cuota"
+              >
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Anular
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- MODAL 1: DETALLE DEL BONO -->
+<div *ngIf="showDetailModal() && selectedTicket()" class="modal-backdrop" (click)="closeDetail()" (keydown.escape)="closeDetail()" tabindex="-1">
+  <div class="neu-card modal-card" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>
+        Detalle del Bono #{{ selectedTicket()?.ticketNumber || selectedTicket()?.id?.slice(0, 6) }}
+      </h2>
+      <button class="btn-close" (click)="closeDetail()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Highlight Box -->
+      <div class="code-highlight-box neu-card">
+        <div class="highlight-item">
+          <span class="hl-label">Código de 4 Dígitos</span>
+          <span class="hl-code">{{ selectedTicket()?.fourDigitCode }}</span>
+        </div>
+        <div class="highlight-item">
+          <span class="hl-label">Estado Actual</span>
+          <span
+            class="neu-badge"
+            [ngClass]="{
+              'neu-badge-vendido': selectedTicket()?.status === 'VENDIDO',
+              'neu-badge-usado': selectedTicket()?.status === 'USADO_ENTRADA' || selectedTicket()?.status === 'USADO_COMIDA',
+              'neu-badge-anulado': selectedTicket()?.status === 'ANULADO'
+            }"
+          >
+            {{ selectedTicket()?.status }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Grid Datos -->
+      <div class="detail-grid">
+        <div class="detail-group">
+          <span class="detail-label">Comprador:</span>
+          <strong>{{ selectedTicket()?.buyerName || 'Cliente General' }}</strong>
+        </div>
+        <div class="detail-group">
+          <span class="detail-label">Vendedor:</span>
+          <strong>{{ selectedTicket()?.sellerName || 'Sistema / Vendedor' }}</strong>
+        </div>
+        <div class="detail-group">
+          <span class="detail-label">Tipo de Bono:</span>
+          <span>{{ selectedTicket()?.ticketType === 'CON_COMIDA' ? 'CON COMIDA' : 'SIMPLE' }}</span>
+        </div>
+        <div class="detail-group">
+          <span class="detail-label">Canal de Venta:</span>
+          <span>{{ selectedTicket()?.saleSource === 'ANTICIPADA' ? 'ANTICIPADA' : 'PUERTA' }}</span>
+        </div>
+        <div class="detail-group" *ngIf="selectedTicket()?.quotaSource">
+          <span class="detail-label">Origen de Cuota:</span>
+          <span class="quota-tag" [class.personal]="selectedTicket()?.quotaSource === 'PERSONAL'" [class.libre]="selectedTicket()?.quotaSource === 'LIBRE'">
+            Cuota {{ selectedTicket()?.quotaSource === 'PERSONAL' ? 'Personal de Vendedor' : 'Compartida / Libre (Global)' }}
+          </span>
+        </div>
+        <div class="detail-group">
+          <span class="detail-label">Monto Pagado:</span>
+          <strong class="text-success">${{ selectedTicket()?.pricePaid | number:'1.2-2' }}</strong>
+        </div>
+      </div>
+
+      <!-- Public Link -->
+      <div class="public-url-box">
+        <label for="public-validation-url">Enlace Público para Validación:</label>
+        <div class="url-input-group">
+          <input id="public-validation-url" type="text" readonly [value]="'/api/tickets/public/' + selectedTicket()?.publicToken" class="neu-input" />
+          <button class="neu-btn neu-btn-bordo" (click)="copyPublicUrl(selectedTicket()!)">
+            <svg class="icon" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> {{ copiedPublicUrl() ? '¡Copiado! ✓' : 'Copiar Link' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button
+        *ngIf="selectedTicket()?.status !== 'ANULADO'"
+        class="neu-btn btn-annul"
+        (click)="openAnnulModal(selectedTicket()!)"
+      >
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Anular Ticket
+      </button>
+      <button class="neu-btn" (click)="closeDetail()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL 2: CONFIRMACIÓN DE ANULACIÓN -->
+<div *ngIf="showAnnulModal() && selectedTicket()" class="modal-backdrop" (click)="closeAnnulModal()" (keydown.escape)="closeAnnulModal()" tabindex="-1">
+  <div class="neu-card modal-card annul-modal" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
+    <div class="modal-header header-danger">
+      <h2><svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Anulación de Ticket / Bono</h2>
+      <button class="btn-close" (click)="closeAnnulModal()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="alert alert-warning">
+        <strong>Importante:</strong> Al anular el bono 
+        <strong>#{{ selectedTicket()?.ticketNumber || selectedTicket()?.fourDigitCode }}</strong>,
+        se cambiará su estado a <strong>ANULADO</strong>.
+        <br />
+        <span *ngIf="selectedTicket()?.saleSource === 'ANTICIPADA' && selectedTicket()?.quotaSource">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> <strong>Devolución de Cuota:</strong> Se reintegrará automáticamente 
+          <strong>1 cupo</strong> a la cuota 
+          <strong>{{ selectedTicket()?.quotaSource === 'PERSONAL' ? 'PERSONAL' : 'COMPARTIDA / LIBRE' }}</strong>
+          del vendedor ({{ selectedTicket()?.sellerName }}).
+        </span>
+      </div>
+
+      <div class="form-group">
+        <label for="reasonInput">Motivo de Anulación (requerido):</label>
+        <input
+          id="reasonInput"
+          type="text"
+          [ngModel]="annulReason()"
+          (ngModelChange)="annulReason.set($event)"
+          placeholder="Ej: Error en los datos del comprador, devolución solicitada..."
+          class="neu-input"
+        />
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="neu-btn" (click)="closeAnnulModal()" [disabled]="annulling()">
+        Cancelar
+      </button>
+      <button class="neu-btn btn-annul" (click)="confirmAnnulTicket()" [disabled]="annulling()">
+        <span *ngIf="annulling()" class="neu-spinner"></span>
+        <span>{{ annulling() ? 'Procesando Anulación...' : 'Confirmar Anulación y Devolver Cupo' }}</span>
+      </button>
+    </div>
+  </div>
+</div>

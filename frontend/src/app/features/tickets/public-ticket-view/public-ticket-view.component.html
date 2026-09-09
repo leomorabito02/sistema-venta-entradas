@@ -1,0 +1,135 @@
+<div class="public-ticket-container">
+  <!-- Loading State -->
+  <ng-container *ngIf="loading()">
+    <app-skeleton-loader></app-skeleton-loader>
+  </ng-container>
+
+  <!-- Error State -->
+  <div *ngIf="!loading() && errorMessage()" class="neu-card state-card error-card">
+    <div class="state-icon"><svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+    <h2>Bono No Disponible</h2>
+    <p class="error-msg">{{ errorMessage() }}</p>
+    <a routerLink="/" class="neu-btn neu-btn-bordo">Ir al Inicio</a>
+  </div>
+
+  <!-- Main Ticket View Card -->
+  <div *ngIf="!loading() && ticket()" class="ticket-card neu-card">
+    <!-- Header Banner -->
+    <div class="ticket-header-banner">
+      <div class="event-brand">
+        <img src="assets/logo-seminario-removebg-preview.png" alt="Logo Peña" class="ticket-logo-img">
+        <div>
+          <h1>Peña Seminario 2026</h1>
+          <p class="event-tagline">Seminario Mayor de Córdoba - Comprobante Oficial</p>
+        </div>
+      </div>
+      <div class="ticket-number-badge neu-card">
+        #Bono {{ ticket()?.ticket_number }}
+      </div>
+    </div>
+
+    <!-- Status Banner -->
+    <div
+      class="status-banner"
+      [class.status-vendido]="ticket()?.status === 'VENDIDO'"
+      [class.status-entrada]="ticket()?.status === 'USADO_ENTRADA'"
+      [class.status-comida]="ticket()?.status === 'USADO_COMIDA'"
+      [class.status-anulado]="ticket()?.status === 'ANULADO'"
+    >
+      <span class="status-icon">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>
+      </span>
+      <div class="status-text">
+        <strong>
+          {{
+            ticket()?.status === 'VENDIDO' ? 'BONO ACTIVO / PENDIENTE DE USO' :
+            ticket()?.status === 'USADO_ENTRADA' ? 'ENTRADA VALIDADA' :
+            ticket()?.status === 'USADO_COMIDA' ? 'ENTRADA Y COMIDA ENTREGADAS' : 'BONO ANULADO E INVALIDEZ'
+          }}
+        </strong>
+        <span class="status-sub">Estado actual registrado en el sistema</span>
+      </div>
+    </div>
+
+    <!-- Code & QR Section -->
+    <div class="code-qr-section neu-card">
+      <div class="code-box">
+        <span class="code-label">CÓDIGO DE VALIDACIÓN DE 4 DÍGITOS</span>
+        <div class="four-code">{{ ticket()?.four_digit_code }}</div>
+        <p class="code-hint">Presenta este código de 4 dígitos al ingresar o retirar tu comida</p>
+      </div>
+
+      <div class="qr-box">
+        <div *ngIf="qrDataUrl()" class="qr-img-wrapper">
+          <img [src]="qrDataUrl()" alt="Código QR de Validación (Código: {{ ticket()?.four_digit_code }})" class="qr-code-img">
+          <span class="qr-text">Código QR Oficial ({{ ticket()?.four_digit_code }})</span>
+        </div>
+        <div *ngIf="!qrDataUrl()" class="qr-placeholder">
+          <span class="qr-icon"><svg class="icon" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span>
+          <span class="qr-text">Generando Código QR...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Information Grid -->
+    <div class="info-grid">
+      <div class="info-item neu-card">
+        <span class="info-label"><svg class="icon" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Comprador:</span>
+        <strong class="info-value">{{ ticket()?.buyer_name }}</strong>
+      </div>
+
+      <div class="info-item neu-card">
+        <span class="info-label"><svg class="icon" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> Vendedor / Emisor:</span>
+        <strong class="info-value">{{ ticket()?.seller_name }}</strong>
+      </div>
+
+      <div class="info-item neu-card">
+        <span class="info-label"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Fecha de Compra:</span>
+        <strong class="info-value">{{ ticket()?.created_at | date:'medium' }}</strong>
+      </div>
+
+      <div class="info-item neu-card">
+        <span class="info-label"><svg class="icon" viewBox="0 0 24 24"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/></svg> Tipo de Bono:</span>
+        <strong class="info-value highlight-type">
+          {{ ticket()?.ticket_type === 'CON_COMIDA' ? 'CON COMIDA' : 'SIMPLE (Solo Entrada)' }}
+        </strong>
+      </div>
+
+      <div class="info-item neu-card">
+        <span class="info-label"><svg class="icon" viewBox="0 0 24 24"><path d="M3 11h18"/><path d="M5 11C5 7.13 8.13 4 12 4s7 3.13 7 7"/><path d="M4 15h16a1 1 0 0 1 1 1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1z"/></svg> Almuerzo / Comida:</span>
+        <strong class="info-value" [class.text-comida]="ticket()?.includes_food">
+          {{ ticket()?.includes_food ? 'Incluye 1 Menú (Choripán)' : 'No incluye menú' }}
+        </strong>
+      </div>
+
+      <div class="info-item neu-card">
+        <span class="info-label"><svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Monto Pagado:</span>
+        <strong class="info-value price-tag">${{ ticket()?.price_paid | number:'1.2-2' }}</strong>
+      </div>
+    </div>
+
+    <!-- Instructions Box -->
+    <div class="instructions-box neu-card">
+      <h3>Instrucciones Importantes para el Asistente</h3>
+      <ul>
+        <li>Guarda o captura la pantalla de este comprobante en tu dispositivo móvil.</li>
+        <li>Al llegar al predio de la Peña Seminario 2026, presenta el código de 4 dígitos (<strong>{{ ticket()?.four_digit_code }}</strong>) en el puesto de acceso.</li>
+        <li *ngIf="ticket()?.includes_food">
+          Tu ticket incluye <strong>1 choripán</strong>. Para retirarlo, acércate al puesto gastronómico y presenta tu código de 4 dígitos.
+        </li>
+        <li>Este bono es personal e intransferible una vez validado por la organización.</li>
+      </ul>
+    </div>
+
+    <!-- Footer Actions -->
+    <div class="ticket-actions">
+      <button class="neu-btn neu-btn-bordo btn-action" (click)="copyUrl()">
+        <svg class="icon" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> {{ copiedUrl() ? '¡Enlace Copiado! ✓' : 'Copiar Enlace para Compartir' }}
+      </button>
+
+      <button class="neu-btn btn-action" (click)="printTicket()">
+        <svg class="icon" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Imprimir / Guardar en PDF
+      </button>
+    </div>
+  </div>
+</div>

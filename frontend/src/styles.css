@@ -1,0 +1,267 @@
+/* Neumorphic Design System - Seminario Mayor de Córdoba */
+:root {
+  /* Color Palette: Cream & Burgundy */
+  --bg-cream-base: #F7F3EB;
+  --bg-cream-card: #F4EFE6;
+  --bg-cream-dark: #E9E1D2;
+  
+  --color-bordo: #7A001E;
+  --color-bordo-hover: #5C0016;
+  --color-bordo-light: rgba(122, 0, 30, 0.1);
+  --color-gold: #D4AF37;
+  --color-gold-hover: #B59328;
+
+  --text-primary: #2B2325;
+  --text-secondary: #665A5D;
+  --text-muted: #8E8285;
+
+  --font-heading: 'Cinzel', serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+
+  /* Neumorphic Shadows */
+  --neu-shadow-outer: 6px 6px 14px #D8D0C3, -6px -6px 14px #FFFFFF;
+  --neu-shadow-outer-sm: 3px 3px 8px #D8D0C3, -3px -3px 8px #FFFFFF;
+  --neu-shadow-outer-hover: 8px 8px 18px #CCC3B4, -8px -8px 18px #FFFFFF;
+  --neu-shadow-inset: inset 3px 3px 7px #D8D0C3, inset -3px -3px 7px #FFFFFF;
+  --neu-shadow-bordo: 5px 5px 12px rgba(122, 0, 30, 0.35), -5px -5px 12px rgba(255, 255, 255, 0.8);
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-cream-base);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+h1, h2, h3, h4, .font-heading {
+  font-family: var(--font-heading);
+  color: var(--color-bordo);
+  letter-spacing: 0.02em;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Neumorphic Card Utility */
+.neu-card {
+  background: var(--bg-cream-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--neu-shadow-outer);
+  padding: 1.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  transition: all 0.25s ease;
+}
+
+.neu-card-hover:hover {
+  box-shadow: var(--neu-shadow-outer-hover);
+  transform: translateY(-2px);
+}
+
+/* Neumorphic Button Utilities */
+.neu-btn {
+  background: var(--bg-cream-card);
+  color: var(--color-bordo);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1.5rem;
+  font-weight: 700;
+  font-family: var(--font-body);
+  cursor: pointer;
+  box-shadow: var(--neu-shadow-outer-sm);
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.neu-btn:hover:not(:disabled) {
+  background: #FAF6EF;
+  color: var(--color-bordo-hover);
+  transform: translateY(-1px);
+}
+
+.neu-btn:active:not(:disabled) {
+  box-shadow: var(--neu-shadow-inset);
+  transform: translateY(0);
+}
+
+.neu-btn-bordo {
+  background: var(--color-bordo);
+  color: #FFFFFF;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  box-shadow: var(--neu-shadow-bordo);
+}
+
+.neu-btn-bordo:hover:not(:disabled) {
+  background: var(--color-bordo-hover);
+  color: var(--color-gold);
+}
+
+.neu-btn-bordo:active:not(:disabled) {
+  box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Neumorphic Input & Select Utilities */
+.neu-input {
+  width: 100%;
+  padding: 0.8rem 1.1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(216, 208, 195, 0.5);
+  background: var(--bg-cream-base);
+  box-shadow: var(--neu-shadow-inset);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.neu-input:focus {
+  border-color: var(--color-gold);
+}
+
+/* Badge Utilities */
+.neu-badge {
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  box-shadow: var(--neu-shadow-outer-sm);
+  display: inline-block;
+}
+
+.neu-badge-vendido {
+  background: #dcfce7;
+  color: #14532d;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.neu-badge-usado {
+  background: #dbeafe;
+  color: #1e3a8a;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.neu-badge-anulado {
+  background: #fee2e2;
+  color: #7f1d1d;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Mobile Responsive Utility Rules & Touch Target Optimization */
+@media (max-width: 768px) {
+  .neu-card {
+    padding: 1.1rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .neu-btn, .neu-input, select.neu-input {
+    min-height: 44px;
+  }
+}
+
+/* Modal Responsive Sheet Utility */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(43, 35, 37, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 1rem;
+}
+
+.modal-card {
+  max-height: 90vh;
+  max-width: 560px;
+  width: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: auto;
+}
+
+/* Table Touch Scroll Container */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Spinner Utilities for Buttons & Async Actions */
+.neu-spinner, .spinner {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 3px solid var(--color-bordo-light);
+  border-top-color: var(--color-bordo);
+  border-radius: 50%;
+  animation: neu-spin 0.7s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.neu-spinner {
+  width: 0.95rem;
+  height: 0.95rem;
+  border-width: 2px;
+  border-color: currentColor;
+  border-right-color: transparent;
+}
+
+@keyframes neu-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Inline SVG Icon styling */
+.icon {
+  display: inline-block;
+  vertical-align: -0.15em;
+  width: 1.1em;
+  height: 1.1em;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+
+
+

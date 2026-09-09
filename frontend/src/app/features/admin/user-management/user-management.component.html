@@ -1,0 +1,90 @@
+<section class="admin-container">
+  <div class="page-header">
+    <h1>Administración de Usuarios</h1>
+    <p class="subtitle">Lista de usuarios registrados y control de estados de cuenta.</p>
+  </div>
+
+  <div *ngIf="message" [class]="'alert alert-' + messageType">
+    {{ message }}
+  </div>
+
+  <div class="neu-card section-card">
+    <div class="header-action">
+      <h3>Usuarios Registrados</h3>
+      <button (click)="loadUsers()" [disabled]="loading" class="neu-btn neu-btn-bordo">
+        <span *ngIf="loading" class="neu-spinner"></span>
+        <span>Recargar Lista</span>
+      </button>
+    </div>
+
+    <div class="table-responsive">
+      <table class="user-table" *ngIf="users.length > 0; else emptyState">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th>Rol</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let u of users">
+            <td><strong>{{ u.name }}</strong></td>
+            <td>{{ u.email }}</td>
+            <td>
+              <label [for]="'user-role-' + u.id" class="sr-only">Rol del usuario</label>
+              <select
+                [id]="'user-role-' + u.id"
+                [value]="u.role"
+                (change)="updateRole(u.id, $any($event.target).value)"
+                [disabled]="loading || updatingUserId() === u.id || u.id === authService.currentUser()?.id"
+                class="role-select"
+                aria-label="Rol del usuario"
+              >
+                <option value="SELLER">SELLER (Vendedor)</option>
+                <option value="ADMIN">ADMIN (Administrador)</option>
+              </select>
+            </td>
+            <td>
+              <span class="neu-badge" [ngClass]="{
+                'neu-badge-vendido': u.status === 'ACTIVE',
+                'neu-badge-anulado': u.status === 'DISABLED',
+                'neu-badge-usado': u.status === 'PENDING'
+              }">
+                {{ u.status }}
+              </span>
+            </td>
+            <td class="actions-cell">
+              <span *ngIf="u.id === authService.currentUser()?.id" class="self-tag">(Tu cuenta)</span>
+              <ng-container *ngIf="u.id !== authService.currentUser()?.id">
+                <button
+                  *ngIf="u.status !== 'ACTIVE'"
+                  (click)="updateStatus(u.id, 'ACTIVE')"
+                  [disabled]="loading || updatingUserId() === u.id"
+                  class="neu-btn btn-sm btn-activate"
+                >
+                  <span *ngIf="updatingUserId() === u.id" class="neu-spinner"></span>
+                  <span>Activar</span>
+                </button>
+                <button
+                  *ngIf="u.status !== 'DISABLED'"
+                  (click)="updateStatus(u.id, 'DISABLED')"
+                  [disabled]="loading || updatingUserId() === u.id"
+                  class="neu-btn btn-sm btn-deactivate"
+                >
+                  <span *ngIf="updatingUserId() === u.id" class="neu-spinner"></span>
+                  <span>Desactivar</span>
+                </button>
+              </ng-container>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <ng-template #emptyState>
+      <p class="empty-msg">No se encontraron usuarios o aún no se han cargado.</p>
+    </ng-template>
+  </div>
+</section>

@@ -1,0 +1,418 @@
+<section class="dashboard-container">
+  <div class="dashboard-header">
+    <div>
+      <h1>Dashboard de Estadísticas</h1>
+      <p class="subtitle">Resumen de ventas, recaudación y estado de bonos de la Peña 2026</p>
+    </div>
+
+    <div class="header-actions">
+      <button class="neu-btn neu-btn-bordo" (click)="openIssueModal()">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><path d="M13 5v2"/><path d="M13 11v2"/><path d="M13 17v2"/></svg> Emitir Nuevo Ticket / Bono
+      </button>
+
+      <!-- Admin View Switcher -->
+      <div *ngIf="authService.isAdmin()" class="admin-filter">
+        <label for="sellerSelect">Filtrar por Vendedor:</label>
+        <select id="sellerSelect" [value]="selectedSellerId()" (change)="onSellerFilterChange($event)" class="neu-input select-control">
+          <option value="ALL">Todos los vendedores (Global)</option>
+          <option *ngFor="let u of users()" [value]="u.id">
+            {{ u.name }} ({{ u.email }})
+          </option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="errorMessage()" class="alert alert-danger">
+    <svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {{ errorMessage() }}
+  </div>
+
+  <div *ngIf="loading()" class="loading-state">
+    <div class="spinner"></div>
+    <p>Cargando métricas en tiempo real...</p>
+  </div>
+
+  <div *ngIf="!loading()" class="dashboard-grid">
+    <!-- Main Stat Cards -->
+    <div class="neu-card stat-card primary">
+      <div class="stat-icon"><svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+      <div class="stat-info">
+        <span class="stat-label">Recaudación Total</span>
+        <h2 class="stat-value">${{ stats().totalRevenue | number:'1.2-2' }}</h2>
+      </div>
+    </div>
+
+    <div class="neu-card stat-card">
+      <div class="stat-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/></svg></div>
+      <div class="stat-info">
+        <span class="stat-label">Bonos Emitidos</span>
+        <h2 class="stat-value">{{ stats().totalIssued }}</h2>
+      </div>
+    </div>
+
+    <div class="neu-card stat-card">
+      <div class="stat-icon"><svg class="icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <div class="stat-info">
+        <span class="stat-label">Entradas Usadas</span>
+        <h2 class="stat-value">{{ stats().entriesUsedCount }}</h2>
+      </div>
+    </div>
+
+    <div class="neu-card stat-card warning">
+      <div class="stat-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M3 11h18"/><path d="M5 11C5 7.13 8.13 4 12 4s7 3.13 7 7"/><path d="M4 15h16a1 1 0 0 1 1 1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1z"/></svg></div>
+      <div class="stat-info">
+        <span class="stat-label">Comidas Pendientes</span>
+        <h2 class="stat-value">{{ stats().foodPendingCount }}</h2>
+      </div>
+    </div>
+
+    <!-- Admin Price Management Card -->
+    <div *ngIf="authService.isAdmin()" class="neu-card full-width price-management-card">
+      <div class="card-header-row">
+        <div>
+          <h3><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Configuración de Precios de Entradas (Solo Administrador)</h3>
+          <p class="subtitle">Modifica y guarda en la base de datos los precios vigentes para tickets simples y con comida.</p>
+        </div>
+      </div>
+
+      <div *ngIf="priceSuccessMessage()" class="alert alert-success">
+        <svg class="icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> {{ priceSuccessMessage() }}
+      </div>
+      <div *ngIf="priceErrorMessage()" class="alert alert-danger">
+        <svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {{ priceErrorMessage() }}
+      </div>
+
+      <div class="price-inputs-grid">
+        <div class="price-input-group">
+          <label for="priceSimple">Precio Ticket SIMPLE ($):</label>
+          <input
+            id="priceSimple"
+            type="number"
+            min="0"
+            [ngModel]="priceSimple()"
+            (ngModelChange)="priceSimple.set($event)"
+            class="neu-input"
+          />
+        </div>
+
+        <div class="price-input-group">
+          <label for="priceConComida">Precio Ticket CON COMIDA ($):</label>
+          <input
+            id="priceConComida"
+            type="number"
+            min="0"
+            [ngModel]="priceConComida()"
+            (ngModelChange)="priceConComida.set($event)"
+            class="neu-input"
+          />
+        </div>
+
+        <div class="price-btn-group">
+          <button (click)="onSavePrices()" [disabled]="savingPrices()" class="neu-btn neu-btn-bordo">
+            <span *ngIf="savingPrices()" class="neu-spinner"></span>
+            <span><svg class="icon" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> {{ savingPrices() ? 'Guardando Precios...' : 'Guardar Nuevos Precios' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detailed Breakdowns Grid -->
+    <div class="neu-card full-width">
+      <h3>Categorías y Modalidades de Venta</h3>
+      
+      <div class="breakdown-grid">
+        <!-- Breakdown by Ticket Type -->
+        <div class="breakdown-card">
+          <h4>Tipos de Bono</h4>
+          
+          <div class="metric-row">
+            <span class="metric-title">SIMPLE</span>
+            <span class="metric-val">{{ stats().ticketsSimpleCount }} emitidos (${{ stats().ticketsSimpleRevenue | number:'1.2-2' }})</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill simple" [style.width.%]="stats().totalIssued ? (stats().ticketsSimpleCount / stats().totalIssued) * 100 : 0"></div>
+          </div>
+
+          <div class="metric-row">
+            <span class="metric-title">CON COMIDA</span>
+            <span class="metric-val">{{ stats().ticketsConComidaCount }} emitidos (${{ stats().ticketsConComidaRevenue | number:'1.2-2' }})</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill comida" [style.width.%]="stats().totalIssued ? (stats().ticketsConComidaCount / stats().totalIssued) * 100 : 0"></div>
+          </div>
+        </div>
+
+        <!-- Breakdown by Sale Source (Anticipada vs Puerta) -->
+        <div class="breakdown-card">
+          <h4>Origen de Venta</h4>
+
+          <div class="metric-row">
+            <span class="metric-title">ANTICIPADA</span>
+            <span class="metric-val">{{ stats().anticipadaCount }} emitidos (${{ stats().anticipadaRevenue | number:'1.2-2' }})</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill anticipada" [style.width.%]="stats().totalIssued ? (stats().anticipadaCount / stats().totalIssued) * 100 : 0"></div>
+          </div>
+
+          <div class="metric-row">
+            <span class="metric-title">PUERTA</span>
+            <span class="metric-val">{{ stats().puertaCount }} emitidos (${{ stats().puertaRevenue | number:'1.2-2' }})</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill puerta" [style.width.%]="stats().totalIssued ? (stats().puertaCount / stats().totalIssued) * 100 : 0"></div>
+          </div>
+        </div>
+
+        <!-- Status Summary -->
+        <div class="breakdown-card">
+          <h4>Estado de Entregas & Anulaciones</h4>
+
+          <div class="status-summary-item">
+            <span>Comidas Entregadas:</span>
+            <strong>{{ stats().foodDeliveredCount }}</strong>
+          </div>
+
+          <div class="status-summary-item">
+            <span>Comidas Pendientes:</span>
+            <strong class="text-warning">{{ stats().foodPendingCount }}</strong>
+          </div>
+
+          <div class="status-summary-item">
+            <span>Bonos Anulados:</span>
+            <strong class="text-danger">{{ stats().annulledCount }} (${{ stats().annulledRevenue | number:'1.2-2' }})</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Issued Tickets List -->
+    <div class="neu-card full-width">
+      <h3>Últimos Bonos Emitidos</h3>
+      
+      <div *ngIf="stats().recentTickets.length === 0" class="empty-msg">
+        No hay bonos emitidos recientemente.
+      </div>
+
+      <div *ngIf="stats().recentTickets.length > 0" class="table-responsive">
+        <table class="tickets-table">
+          <thead>
+            <tr>
+              <th># Bono</th>
+              <th>Código</th>
+              <th>Comprador</th>
+              <th>Tipo</th>
+              <th>Origen</th>
+              <th>Monto</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let t of stats().recentTickets">
+              <td><strong>#{{ t.ticketNumber || t.id.slice(0, 6) }}</strong></td>
+              <td><code>{{ t.fourDigitCode || (t.publicToken ? t.publicToken.slice(0, 4) : '') }}</code></td>
+              <td>{{ t.buyerName || 'Cliente General' }}</td>
+              <td>
+                <span class="badge" [class.badge-simple]="t.ticketType === 'SIMPLE'" [class.badge-comida]="t.ticketType === 'CON_COMIDA'">
+                  {{ t.ticketType }}
+                </span>
+              </td>
+              <td><span class="badge badge-source">{{ t.saleSource }}</span></td>
+              <td><strong>${{ t.pricePaid | number:'1.2-2' }}</strong></td>
+              <td>
+                <span class="neu-badge" [ngClass]="{
+                  'neu-badge-vendido': t.status === 'VENDIDO',
+                  'neu-badge-usado': t.status === 'USADO_ENTRADA' || t.status === 'USADO_COMIDA',
+                  'neu-badge-anulado': t.status === 'ANULADO'
+                }">
+                  {{ t.status }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Emitir Nuevo Ticket -->
+  <div *ngIf="showIssueModal()" class="modal-backdrop">
+    <div class="neu-card modal-card">
+      <div class="modal-header">
+        <h2><svg class="icon" viewBox="0 0 24 24"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/></svg> Emitir Nuevo Bono / Ticket</h2>
+        <button class="btn-close" (click)="closeIssueModal()">✕</button>
+      </div>
+
+      <!-- Step Indicator -->
+      <div *ngIf="issueStep() < 4" class="step-indicator">
+        <div class="step-item" [class.active]="issueStep() === 1" [class.completed]="issueStep() > 1">1. Tipo & Precio</div>
+        <div class="step-line"></div>
+        <div class="step-item" [class.active]="issueStep() === 2" [class.completed]="issueStep() > 2">2. Comprador</div>
+        <div class="step-line"></div>
+        <div class="step-item" [class.active]="issueStep() === 3">3. Resumen</div>
+      </div>
+
+      <div *ngIf="issueErrorMessage()" class="alert alert-danger">
+        <svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {{ issueErrorMessage() }}
+      </div>
+
+      <!-- STEP 1: Selection of Ticket Type & Sale Source -->
+      <div *ngIf="issueStep() === 1" class="modal-body">
+        <h3>1. Selecciona el Tipo de Entrada</h3>
+        <p class="modal-subtitle">Los precios corresponden a los configurados activamente en la base de datos.</p>
+        
+        <div class="ticket-type-selector">
+          <button type="button" class="type-card neu-card" [class.selected]="newTicketType() === 'SIMPLE'" (click)="newTicketType.set('SIMPLE')">
+            <div class="type-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/></svg></div>
+            <div class="type-title">Bono Simple</div>
+            <div class="type-price">${{ priceSimple() | number:'1.2-2' }}</div>
+            <p>Acceso general al seminario.</p>
+          </button>
+
+          <button type="button" class="type-card neu-card" [class.selected]="newTicketType() === 'CON_COMIDA'" (click)="newTicketType.set('CON_COMIDA')">
+            <div class="type-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M3 11h18"/><path d="M5 11C5 7.13 8.13 4 12 4s7 3.13 7 7"/><path d="M4 15h16a1 1 0 0 1 1 1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1z"/></svg></div>
+            <div class="type-title">Bono con Comida</div>
+            <div class="type-price">${{ priceConComida() | number:'1.2-2' }}</div>
+            <p>Acceso al seminario + menú de comida incluido.</p>
+          </button>
+        </div>
+
+        <div class="form-group" style="margin-top: 1.5rem;">
+          <span class="label-title">Canal / Origen de Venta:</span>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="saleSource" value="ANTICIPADA" [checked]="newSaleSource() === 'ANTICIPADA'" (change)="newSaleSource.set('ANTICIPADA')">
+              Venta Anticipada (Descuenta de Cuota)
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="saleSource" value="PUERTA" [checked]="newSaleSource() === 'PUERTA'" (change)="newSaleSource.set('PUERTA')">
+              Venta en Puerta
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="neu-btn" (click)="closeIssueModal()">Cancelar</button>
+          <button class="neu-btn neu-btn-bordo" (click)="goToStep(2)">Siguiente: Datos Comprador &rarr;</button>
+        </div>
+      </div>
+
+      <!-- STEP 2: Buyer Information -->
+      <div *ngIf="issueStep() === 2" class="modal-body">
+        <h3>2. Datos del Comprador</h3>
+        <p class="modal-subtitle">Completa la información para personalizar el bono emitido.</p>
+
+        <div class="inputs-grid">
+          <div class="form-group">
+            <label for="bFirstName">Nombre *</label>
+            <input id="bFirstName" type="text" class="neu-input" [value]="buyerFirstName()" (input)="buyerFirstName.set($any($event.target).value)" placeholder="Ej. Juan">
+          </div>
+
+          <div class="form-group">
+            <label for="bLastName">Apellido *</label>
+            <input id="bLastName" type="text" class="neu-input" [value]="buyerLastName()" (input)="buyerLastName.set($any($event.target).value)" placeholder="Ej. Pérez">
+          </div>
+
+          <div class="form-group">
+            <label for="bPhone">Teléfono *</label>
+            <input id="bPhone" type="text" class="neu-input" [value]="buyerPhone()" (input)="buyerPhone.set($any($event.target).value)" placeholder="Ej. 1122334455">
+          </div>
+
+          <div class="form-group">
+            <label for="bEmail">Email (Opcional)</label>
+            <input id="bEmail" type="email" class="neu-input" [value]="buyerEmail()" (input)="buyerEmail.set($any($event.target).value)" placeholder="Ej. comprador@email.com">
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="neu-btn" (click)="goToStep(1)">&larr; Volver</button>
+          <button class="neu-btn neu-btn-bordo" (click)="goToStep(3)">Siguiente: Resumen &rarr;</button>
+        </div>
+      </div>
+
+      <!-- STEP 3: Summary & Confirmation -->
+      <div *ngIf="issueStep() === 3" class="modal-body">
+        <h3>3. Resumen y Confirmación de Emisión</h3>
+        <p class="modal-subtitle">Verifica los detalles del ticket antes de registrarlo en la base de datos.</p>
+
+        <div class="summary-box neu-card">
+          <div class="summary-item">
+            <span>Tipo de Bono:</span>
+            <strong>{{ newTicketType() === 'CON_COMIDA' ? 'CON COMIDA' : 'SIMPLE' }}</strong>
+          </div>
+          <div class="summary-item">
+            <span>Canal de Venta:</span>
+            <strong>{{ newSaleSource() }}</strong>
+          </div>
+          <div class="summary-item">
+            <span>Precio Total:</span>
+            <strong class="summary-price">${{ currentSelectedPrice() | number:'1.2-2' }}</strong>
+          </div>
+          <hr class="summary-divider">
+          <div class="summary-item">
+            <span>Comprador:</span>
+            <strong>{{ buyerFirstName() }} {{ buyerLastName() }}</strong>
+          </div>
+          <div class="summary-item">
+            <span>Teléfono:</span>
+            <strong>{{ buyerPhone() }}</strong>
+          </div>
+          <div class="summary-item" *ngIf="buyerEmail()">
+            <span>Email:</span>
+            <strong>{{ buyerEmail() }}</strong>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="neu-btn" (click)="goToStep(2)">&larr; Editar Datos</button>
+          <button class="neu-btn neu-btn-bordo" [disabled]="issuingTicket()" (click)="submitIssueTicket()">
+            <span *ngIf="issuingTicket()" class="neu-spinner"></span>
+            <span>{{ issuingTicket() ? 'Emitiendo Bono...' : 'Confirmar y Emitir Bono' }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 4: Success Result & Public URL Response -->
+      <div *ngIf="issueStep() === 4" class="modal-body">
+        <div class="success-banner">
+          <div class="success-icon"><svg class="icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <h3>¡Bono Emitido Correctamente!</h3>
+          <p class="modal-subtitle">El ticket ha sido registrado en la base de datos.</p>
+        </div>
+
+        <div *ngIf="createdTicket()" class="ticket-result-card neu-card">
+          <div class="result-row">
+            <span>Número de Bono:</span>
+            <strong>#{{ createdTicket().ticket_number }}</strong>
+          </div>
+          <div class="result-row">
+            <span>Código de 4 Dígitos:</span>
+            <code class="code-badge">{{ createdTicket().four_digit_code }}</code>
+          </div>
+          <div class="result-row">
+            <span>Monto Pagado:</span>
+            <strong>${{ createdTicket().price_paid | number:'1.2-2' }}</strong>
+          </div>
+          <div class="result-row">
+            <span>Comprador:</span>
+            <strong>{{ createdTicket().buyer?.first_name }} {{ createdTicket().buyer?.last_name }}</strong>
+          </div>
+
+          <div class="public-url-box">
+            <label for="public-ticket-url">URL Pública del Bono:</label>
+            <div class="url-input-group">
+              <input id="public-ticket-url" type="text" readonly class="neu-input" [value]="createdTicket().public_url">
+              <button class="neu-btn neu-btn-bordo" (click)="copyPublicUrl()">
+                <svg class="icon" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> {{ copiedPublicUrl() ? '¡Copiado! ✓' : 'Copiar URL' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="neu-btn neu-btn-bordo" (click)="closeIssueModal()">Cerrar y Volver al Dashboard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
