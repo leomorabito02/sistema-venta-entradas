@@ -1,20 +1,23 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
+import { QuickSaleService } from '../../core/services/quick-sale.service';
 import { Ticket, User, DashboardStats, SellerRankingItem } from '../../core/models/api.models';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
 export class DashboardComponent implements OnInit {
   readonly authService = inject(AuthService);
   private readonly apiService = inject(ApiService);
+  private readonly quickSaleService = inject(QuickSaleService);
 
   loading = signal<boolean>(true);
   errorMessage = signal<string>('');
@@ -213,6 +216,9 @@ export class DashboardComponent implements OnInit {
   ngOnInit(): void {
     this.loadData();
     this.loadPrices();
+    this.quickSaleService.ticketCreated$.subscribe(() => {
+      this.loadData();
+    });
   }
 
   loadPrices(): void {
@@ -318,6 +324,8 @@ export class DashboardComponent implements OnInit {
   quotaOption = signal<'PERSONAL' | 'LIBRE' | 'PUERTA'>('PERSONAL');
   personalQuotaAvailable = signal<number | null>(null);
   globalFreeQuotaAvailable = signal<number | null>(null);
+  buyerCountryCode = signal<string>('54');
+  buyerCustomCountryCode = signal<string>('');
   buyerFirstName = signal<string>('');
   buyerLastName = signal<string>('');
   buyerPhone = signal<string>('');
@@ -327,14 +335,27 @@ export class DashboardComponent implements OnInit {
   createdTicket = signal<any>(null);
   copiedPublicUrl = signal<boolean>(false);
 
+  getEffectiveBuyerCountryCode(): string {
+    if (this.buyerCountryCode() === 'custom') {
+      return this.buyerCustomCountryCode().replace(/\D/g, '');
+    }
+    return this.buyerCountryCode();
+  }
+
   readonly currentSelectedPrice = computed<number>(() => {
     return this.newTicketType() === 'CON_COMIDA' ? this.priceConComida() : this.priceSimple();
   });
 
   openIssueModal(): void {
+    if (window.innerWidth <= 768) {
+      this.quickSaleService.open();
+      return;
+    }
     this.issueStep.set(1);
     this.newTicketType.set('SIMPLE');
     this.quotaOption.set('PERSONAL');
+    this.buyerCountryCode.set('54');
+    this.buyerCustomCountryCode.set('');
     this.buyerFirstName.set('');
     this.buyerLastName.set('');
     this.buyerPhone.set('');
@@ -403,13 +424,17 @@ export class DashboardComponent implements OnInit {
       quotaSource = undefined;
     }
 
+    const code = this.getEffectiveBuyerCountryCode();
+    const cleanPhoneDigits = this.buyerPhone().replace(/\D/g, '');
+    const fullPhone = code ? `+${code}${cleanPhoneDigits}` : cleanPhoneDigits;
+
     const payload = {
       ticket_type: this.newTicketType(),
       sale_source: saleSource,
       quota_source: quotaSource,
       first_name: this.buyerFirstName().trim(),
       last_name: this.buyerLastName().trim(),
-      phone: this.buyerPhone().trim(),
+      phone: fullPhone,
       email: this.buyerEmail().trim() || undefined
     };
 

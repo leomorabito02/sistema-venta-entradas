@@ -28,12 +28,15 @@
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 22px;
+
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -44,6 +47,18 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  padding-bottom: 0;
+}
+
+/* Prevent auto-zoom on mobile inputs */
+@media screen and (max-width: 767px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  body.has-bottom-nav {
+    padding-bottom: calc(72px + var(--safe-area-bottom));
+  }
 }
 
 h1, h2, h3, h4, .font-heading {
@@ -55,6 +70,20 @@ h1, h2, h3, h4, .font-heading {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* SVG Icon Utility */
+svg.icon, .icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  display: inline-block;
+  vertical-align: -0.125em;
+  flex-shrink: 0;
 }
 
 /* Neumorphic Card Utility */
@@ -79,6 +108,7 @@ a {
   border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: var(--radius-sm);
   padding: 0.75rem 1.5rem;
+  min-height: 48px;
   font-weight: 700;
   font-family: var(--font-body);
   cursor: pointer;
@@ -88,6 +118,7 @@ a {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  touch-action: manipulation;
 }
 
 .neu-btn:hover:not(:disabled) {
@@ -120,14 +151,15 @@ a {
 /* Neumorphic Input & Select Utilities */
 .neu-input {
   width: 100%;
-  padding: 0.8rem 1.1rem;
+  padding: 0.85rem 1.1rem;
+  min-height: 48px;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(216, 208, 195, 0.5);
   background: var(--bg-cream-base);
   box-shadow: var(--neu-shadow-inset);
   color: var(--text-primary);
   font-family: var(--font-body);
-  font-size: 0.95rem;
+  font-size: 1rem;
   outline: none;
   transition: border-color 0.2s;
 }
@@ -148,162 +180,362 @@ a {
 
 .neu-badge-vendido {
   background: #dcfce7;
-  color: #14532d;
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #166534;
 }
 
 .neu-badge-usado {
-  background: #dbeafe;
-  color: #1e3a8a;
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .neu-badge-anulado {
   background: #fee2e2;
-  color: #7f1d1d;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #991b1b;
 }
 
-/* Mobile Responsive Utility Rules & Touch Target Optimization */
-@media (max-width: 768px) {
-  .neu-card {
-    padding: 1.1rem;
-    border-radius: var(--radius-sm);
-  }
-
-  .neu-btn, .neu-input, select.neu-input {
-    min-height: 44px;
-  }
+/* Pill Selectors for Mobile */
+.pill-selector {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
 }
 
-/* Modal Responsive Sheet Utility */
-.modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(43, 35, 37, 0.68);
-  backdrop-filter: blur(5px);
+.pill-btn {
+  flex: 1;
+  padding: 0.85rem 0.5rem;
+  min-height: 52px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: var(--bg-cream-card);
+  box-shadow: var(--neu-shadow-outer-sm);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.pill-btn.active {
+  background: var(--color-bordo);
+  color: #FFFFFF;
+  box-shadow: var(--neu-shadow-bordo);
+  border-color: var(--color-gold);
+}
+
+/* Numpad Touch Keypad */
+.numpad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  max-width: 320px;
+  margin: 1rem auto;
+}
+
+.numpad-btn {
+  height: 64px;
+  border-radius: var(--radius-md);
+  background: var(--bg-cream-card);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: var(--neu-shadow-outer-sm);
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-bordo);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1100;
-  padding: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
 }
 
-.modal-card {
-  max-height: 92vh;
-  max-width: 560px;
+.numpad-btn:active {
+  box-shadow: var(--neu-shadow-inset);
+  transform: scale(0.96);
+}
+
+.numpad-btn.action-btn {
+  background: var(--bg-cream-dark);
+  font-size: 1.1rem;
+}
+
+/* Validation Result Overlay Modal (Natural instant feedback without scroll) */
+.validation-overlay-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.validation-overlay-card {
   width: 100%;
+  max-width: 440px;
+  border-radius: 28px;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  animation: popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.validation-overlay-card.success {
+  background: linear-gradient(145deg, #065F46, #044E38);
+  color: #FFFFFF;
+}
+
+.validation-overlay-card.food-success {
+  background: linear-gradient(145deg, #856404, #533f02);
+  color: #FFFFFF;
+}
+
+.validation-overlay-card.error {
+  background: linear-gradient(145deg, #991B1B, #7F1D1D);
+  color: #FFFFFF;
+}
+
+.validation-overlay-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.25rem;
+}
+
+.validation-overlay-icon svg {
+  width: 48px;
+  height: 48px;
+  stroke: #FFFFFF;
+  stroke-width: 3;
+}
+
+.validation-overlay-title {
+  font-family: var(--font-heading);
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #FFFFFF !important;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.validation-overlay-buyer {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #FFFFFF !important;
+  margin-bottom: 0.75rem;
+  opacity: 1;
+}
+
+.validation-overlay-details {
+  font-size: 1rem;
+  color: #FFFFFF !important;
+  opacity: 0.95;
+  margin-bottom: 1.75rem;
+  font-weight: 500;
+}
+
+.overlay-ticket-details {
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 16px;
+  padding: 0.9rem 1.1rem;
+  margin: 0.9rem 0 1.25rem 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  margin: auto;
+  gap: 0.45rem;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.modal-body {
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  color: #FFFFFF;
+}
+
+.d-label {
+  opacity: 0.85;
+  font-size: 0.85rem;
+}
+
+.d-val {
+  font-weight: 700;
+  color: #FFFFFF;
+  text-align: right;
+}
+
+.validation-overlay-btn {
+  width: 100%;
+  padding: 1rem;
+  min-height: 56px;
+  border-radius: 16px;
+  border: none;
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: #FFFFFF;
+  color: #111827;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease;
+}
+
+.validation-overlay-btn:active {
+  transform: scale(0.98);
+}
+
+/* Phone Input & Country Code Selector */
+.phone-input-group {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  width: 100%;
+}
+
+.country-select {
+  width: 125px;
+  min-width: 125px;
+  padding: 0.6rem 0.5rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm, 8px);
+  background: var(--bg-cream-base, #F7F3EB);
+  border: 1px solid var(--color-bordo-light, rgba(122, 0, 30, 0.2));
+  color: var(--color-bordo, #7A001E);
+  box-shadow: var(--neu-shadow-inset);
+  cursor: pointer;
+}
+
+.custom-country-box {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  background: var(--bg-cream-base, #F7F3EB);
+  border: 1px solid var(--color-bordo-light, rgba(122, 0, 30, 0.2));
+  border-radius: var(--radius-sm, 8px);
+  padding: 0 0.4rem;
+  box-shadow: var(--neu-shadow-inset);
+  min-width: 75px;
+  width: 75px;
+}
+
+.plus-prefix {
+  font-weight: 700;
+  color: var(--color-bordo, #7A001E);
+}
+
+.custom-country-input {
+  width: 100%;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0.5rem 0.2rem !important;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.phone-number-input {
+  flex: 1;
+  font-family: inherit;
+  letter-spacing: 0.05em;
+}
+
+/* Universal Responsive Modal System for Mobile & Desktop */
+.modal-backdrop,
+.validation-overlay-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000 !important;
+  background: rgba(20, 15, 17, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-card,
+.validation-overlay-card {
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(90vh - var(--safe-area-bottom, 0px));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  max-height: calc(92vh - 120px);
+  border-radius: 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35), var(--neu-shadow-outer-sm);
+  z-index: 10001 !important;
+  animation: popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@media (max-width: 600px) {
-  .modal-backdrop {
-    padding: 0.5rem;
+@media (max-width: 768px) {
+  .modal-backdrop,
+  .validation-overlay-backdrop {
     align-items: flex-end;
+    padding: 0;
   }
 
-  .modal-card {
-    max-height: 94vh;
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-    padding: 1.25rem 1rem;
+  .modal-card,
+  .validation-overlay-card {
+    max-width: 100% !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-top-left-radius: 28px !important;
+    border-top-right-radius: 28px !important;
+    max-height: calc(88vh - var(--safe-area-bottom, 0px)) !important;
+    padding: 1.25rem 1.25rem calc(1.5rem + var(--safe-area-bottom, 0px)) 1.25rem !important;
+    animation: slideUpModal 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .modal-footer {
-    flex-direction: column-reverse;
-    gap: 0.5rem;
-    width: 100%;
+    flex-direction: column-reverse !important;
+    gap: 0.6rem !important;
+    margin-top: 1rem !important;
   }
 
   .modal-footer .neu-btn {
-    width: 100%;
-    min-height: 48px;
+    width: 100% !important;
+    min-height: 48px !important;
+    justify-content: center;
   }
 
   .url-input-group {
-    flex-direction: column;
-    gap: 0.5rem;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
   }
 
   .url-input-group .neu-btn {
-    width: 100%;
-    min-height: 44px;
+    width: 100% !important;
+    justify-content: center;
   }
 }
 
-/* Table Touch Scroll Container */
-.table-responsive {
-  width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-/* Spinner Utilities for Buttons & Async Actions */
-.neu-spinner, .spinner {
-  width: 1.5rem;
-  height: 1.5rem;
-  border: 3px solid var(--color-bordo-light);
-  border-top-color: var(--color-bordo);
-  border-radius: 50%;
-  animation: neu-spin 0.7s linear infinite;
-  display: inline-block;
-  vertical-align: middle;
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
 }
 
-.neu-spinner {
-  width: 0.95rem;
-  height: 0.95rem;
-  border-width: 2px;
-  border-color: currentColor;
-  border-right-color: transparent;
+@keyframes slideUpModal {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
-
-@keyframes neu-spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-/* Inline SVG Icon styling */
-.icon {
-  display: inline-block;
-  vertical-align: -0.15em;
-  width: 1.1em;
-  height: 1.1em;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-
-
-

@@ -10,6 +10,10 @@
         <svg class="icon" viewBox="0 0 24 24"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><path d="M13 5v2"/><path d="M13 11v2"/><path d="M13 17v2"/></svg> Emitir Nuevo Ticket / Bono
       </button>
 
+      <a *ngIf="authService.isAdmin()" routerLink="/admin/users" class="neu-btn btn-admin-users">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Usuarios Admin
+      </a>
+
       <!-- Admin View Switcher -->
       <div *ngIf="authService.isAdmin()" class="admin-filter">
         <label for="sellerSelect">Filtrar por Vendedor:</label>
@@ -415,9 +419,46 @@
             <input id="bLastName" type="text" class="neu-input" [value]="buyerLastName()" (input)="buyerLastName.set($any($event.target).value)" placeholder="Ej. Pérez">
           </div>
 
-          <div class="form-group">
-            <label for="bPhone">Teléfono *</label>
-            <input id="bPhone" type="text" class="neu-input" [value]="buyerPhone()" (input)="buyerPhone.set($any($event.target).value)" placeholder="Ej. 1122334455">
+          <div class="form-group span-2">
+            <label for="bPhone">Teléfono (WhatsApp) *</label>
+            <div class="phone-input-group">
+              <select [value]="buyerCountryCode()" (change)="buyerCountryCode.set($any($event.target).value)" class="neu-select country-select" aria-label="Código de País">
+                <option value="54">🇦🇷 (+54)</option>
+                <option value="598">🇺🇾 (+598)</option>
+                <option value="56">🇨🇱 (+56)</option>
+                <option value="595">🇵🇾 (+595)</option>
+                <option value="55">🇧🇷 (+55)</option>
+                <option value="591">🇧🇴 (+591)</option>
+                <option value="51">🇵🇪 (+51)</option>
+                <option value="52">🇲🇽 (+52)</option>
+                <option value="34">🇪🇸 (+34)</option>
+                <option value="1">🇺🇸 (+1)</option>
+                <option value="custom">🌐 Otro (+...)</option>
+              </select>
+
+              <div *ngIf="buyerCountryCode() === 'custom'" class="custom-country-box">
+                <span class="plus-prefix">+</span>
+                <input id="dashCustomCountryCode"
+                       type="tel"
+                       inputmode="numeric"
+                       pattern="[0-9]*"
+                       [value]="buyerCustomCountryCode()"
+                       (input)="buyerCustomCountryCode.set($any($event.target).value)"
+                       class="neu-input custom-country-input"
+                       placeholder="Cod"
+                       aria-label="Código de país"
+                       maxlength="4" />
+              </div>
+
+              <input id="bPhone"
+                     type="tel"
+                     inputmode="numeric"
+                     pattern="[0-9]*"
+                     class="neu-input phone-number-input"
+                     [value]="buyerPhone()"
+                     (input)="buyerPhone.set($any($event.target).value)"
+                     placeholder="3511234567">
+            </div>
           </div>
 
           <div class="form-group">

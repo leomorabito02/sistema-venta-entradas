@@ -4,26 +4,27 @@
       <img src="assets/logo-seminario-removebg-preview.png" alt="Logo Peña" class="nav-logo-img">
       <span class="brand-title">Peña Seminario 2026</span>
     </div>
-
-    <button class="mobile-toggle" (click)="toggleMenu()" aria-label="Abrir Menú">
-      <svg class="icon" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    <button (click)="onLogout()" class="btn-logout btn-logout-mobile" aria-label="Cerrar sesión">
+      Salir
     </button>
   </div>
 
-  <div class="nav-content" [class.mobile-open]="menuOpen()">
+  <div class="nav-content">
     <ul class="nav-links">
-      <li><a routerLink="/dashboard" routerLinkActive="active" (click)="closeMenu()">Dashboard</a></li>
-      <li><a routerLink="/tickets" routerLinkActive="active" (click)="closeMenu()">Tickets</a></li>
-      <li><a routerLink="/validar-entrada" routerLinkActive="active" (click)="closeMenu()">Validar Entrada</a></li>
-      <li><a routerLink="/validar-comida" routerLinkActive="active" (click)="closeMenu()">Validar Comida</a></li>
-      <li *ngIf="authService.isAdmin()"><a routerLink="/admin/users" routerLinkActive="active" (click)="closeMenu()">Usuarios Admin</a></li>
+      <li><a routerLink="/dashboard" routerLinkActive="active">Dashboard</a></li>
+      <li><a routerLink="/tickets" routerLinkActive="active">Tickets</a></li>
+      <li><a routerLink="/validar-entrada" routerLinkActive="active">Validar Entrada</a></li>
+      <li><a routerLink="/validar-comida" routerLinkActive="active">Validar Comida</a></li>
+      <li *ngIf="authService.isAdmin()"><a routerLink="/admin/users" routerLinkActive="active">Usuarios Admin</a></li>
     </ul>
 
     <div class="auth-area">
       <span class="user-chip">
         <svg class="icon" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> {{ authService.currentUser()?.name }} ({{ authService.currentUser()?.role }})
       </span>
-      <button (click)="onLogout(); closeMenu()" class="btn-logout">Salir</button>
+      <button (click)="onLogout()" class="btn-logout" aria-label="Cerrar sesión">
+        Salir
+      </button>
     </div>
   </div>
 </nav>

@@ -1,0 +1,55 @@
+<nav *ngIf="authService.isAuthenticated()" class="bottom-dock">
+  <a routerLink="/tickets" routerLinkActive="active" class="dock-item">
+    <div class="icon-wrapper">
+      <svg class="dock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/>
+        <path d="M13 5v14M9 5v14"/>
+      </svg>
+    </div>
+    <span class="dock-label">Entradas</span>
+  </a>
+
+  <a routerLink="/validar-entrada" routerLinkActive="active" class="dock-item">
+    <div class="icon-wrapper">
+      <svg class="dock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M3 9h18M3 15h18"/>
+      </svg>
+    </div>
+    <span class="dock-label">Acceso</span>
+  </a>
+
+  <!-- Centered FAB Button for Quick Sale -->
+  <button (click)="onQuickSaleClick()" class="dock-fab" aria-label="Nueva Venta Rápida">
+    <svg class="fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+      <line x1="12" y1="5" x2="12" y2="19"/>
+      <line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  </button>
+
+  <a routerLink="/validar-comida" routerLinkActive="active" class="dock-item">
+    <div class="icon-wrapper">
+      <svg class="dock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+        <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+        <line x1="6" y1="1" x2="6" y2="4"/>
+        <line x1="10" y1="1" x2="10" y2="4"/>
+        <line x1="14" y1="1" x2="14" y2="4"/>
+      </svg>
+    </div>
+    <span class="dock-label">Comida</span>
+  </a>
+
+  <a routerLink="/dashboard" routerLinkActive="active" class="dock-item">
+    <div class="icon-wrapper">
+      <svg class="dock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="9"/>
+        <rect x="14" y="3" width="7" height="5"/>
+        <rect x="14" y="12" width="7" height="9"/>
+        <rect x="3" y="16" width="7" height="5"/>
+      </svg>
+    </div>
+    <span class="dock-label">Inicio</span>
+  </a>
+</nav>

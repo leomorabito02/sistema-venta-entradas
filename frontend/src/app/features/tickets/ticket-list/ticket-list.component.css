@@ -161,7 +161,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2000;
+  z-index: 10000;
   padding: 1rem;
 }
 
@@ -245,8 +245,112 @@
   margin-top: 1.5rem;
 }
 
+.mobile-only-cards {
+  display: none;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.mobile-ticket-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  border: 1px solid rgba(122, 0, 30, 0.08);
+}
+
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-ticket-num {
+  font-family: var(--font-heading, 'Cinzel', serif);
+  font-weight: 700;
+  color: var(--color-bordo, #7A001E);
+  font-size: 1rem;
+}
+
+.card-body-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.card-main-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.card-buyer {
+  font-size: 1rem;
+  color: var(--text-primary, #2B2325);
+}
+
+.card-seller {
+  font-size: 0.8rem;
+  color: var(--text-secondary, #665A5D);
+}
+
+.code-chip.lg {
+  font-size: 1.15rem;
+  padding: 0.35rem 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.card-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.6rem;
+  border-top: 1px dashed rgba(0, 0, 0, 0.08);
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.card-tags {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.card-price-action {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+.card-price {
+  font-weight: 700;
+  color: #15803d;
+  font-size: 1.05rem;
+}
+
+.neu-btn.sm {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+}
+
 @media (max-width: 768px) {
-  .tickets-header { flex-direction: column; gap: 1rem; }
+  .tickets-container {
+    padding: 1rem 0.75rem;
+  }
+  .tickets-header { flex-direction: column; gap: 0.75rem; }
   .filter-row-top { flex-direction: column; align-items: stretch; }
+  .filter-grid { grid-template-columns: 1fr 1fr; }
+  .filter-stats-bar { flex-direction: column; gap: 0.5rem; }
   .detail-grid { grid-template-columns: 1fr; }
+
+  .desktop-only-table { display: none !important; }
+  .mobile-only-cards { display: flex; }
+}
+
+@media (max-width: 480px) {
+  .filter-grid { grid-template-columns: 1fr; }
 }

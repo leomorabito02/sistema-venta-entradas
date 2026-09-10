@@ -36,10 +36,13 @@
 }
 
 .social-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   color: var(--color-bordo, #7A001E);
   text-decoration: none;
   font-weight: 600;
-  padding: 0.4rem 0.9rem;
+  padding: 0.5rem 1.1rem;
   border-radius: 20px;
   background: var(--bg-cream-base, #F7F3EB);
   box-shadow: var(--neu-shadow-outer-sm);
@@ -47,11 +50,24 @@
   transition: all 0.2s ease;
 }
 
+.social-link .icon {
+  width: 20px;
+  height: 20px;
+  stroke: var(--color-bordo, #7A001E);
+  fill: none;
+  flex-shrink: 0;
+  transition: stroke 0.2s ease;
+}
+
 .social-link:hover {
   color: #FFFFFF;
   background: var(--color-bordo, #7A001E);
   border-color: var(--color-gold, #D4AF37);
   transform: translateY(-2px);
+}
+
+.social-link:hover .icon {
+  stroke: #FFFFFF;
 }
 
 .thank-you-msg {

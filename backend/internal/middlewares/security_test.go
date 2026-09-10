@@ -1,6 +1,7 @@
 package middlewares_test
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -45,6 +46,71 @@ func TestCORS(t *testing.T) {
 			t.Errorf("Expected Access-Control-Allow-Origin header to be empty for disallowed origin, got %s", rec.Header().Get("Access-Control-Allow-Origin"))
 		}
 	})
+}
+
+func TestSecurityHeaders(t *testing.T) {
+	mw := middlewares.SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+
+	mw.ServeHTTP(rec, req)
+
+	headers := map[string]string{
+		"X-Content-Type-Options":    "nosniff",
+		"X-Frame-Options":           "DENY",
+		"X-XSS-Protection":          "1; mode=block",
+		"Content-Security-Policy":   "default-src 'self'",
+		"Referrer-Policy":           "strict-origin-when-cross-origin",
+		"Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+	}
+
+	for key, expectedVal := range headers {
+		if val := rec.Header().Get(key); val != expectedVal {
+			t.Errorf("Expected header %s: %s, got %s", key, expectedVal, val)
+		}
+	}
+}
+
+func TestMaxBodySize(t *testing.T) {
+	jsonView := views.NewJSONView()
+	mw := middlewares.MaxBodySize(10, jsonView)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		buf := make([]byte, 20)
+		_, err := r.Body.Read(buf)
+		if err != nil {
+			w.WriteHeader(http.StatusRequestEntityTooLarge)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	body := bytes.NewBufferString("123456789012345") // 15 bytes > 10 bytes limit
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	rec := httptest.NewRecorder()
+
+	mw.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Errorf("Expected status 413 Payload Too Large, got %d", rec.Code)
+	}
+}
+
+func TestRecovery(t *testing.T) {
+	jsonView := views.NewJSONView()
+	mw := middlewares.Recovery(jsonView)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		panic("unexpected crash!")
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+
+	mw.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 500 Internal Server Error on panic recovery, got %d", rec.Code)
+	}
 }
 
 func TestValidateAntiCSRF(t *testing.T) {

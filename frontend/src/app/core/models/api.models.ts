@@ -73,6 +73,12 @@ export interface Ticket {
   createdAt?: string;
   sellerName?: string;
   buyerName?: string;
+  buyer?: {
+    first_name: string;
+    last_name: string;
+    phone?: string;
+    email?: string;
+  };
   entryValidatedAt?: string;
   entryValidatorName?: string;
   foodValidatedAt?: string;
