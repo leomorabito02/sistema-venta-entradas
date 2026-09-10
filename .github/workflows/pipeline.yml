@@ -194,7 +194,7 @@ jobs:
           region: '${{ secrets.GCP_REGION }}'
           project_id: '${{ secrets.GCP_PROJECT_ID }}'
           image: '${{ secrets.DOCKERHUB_USERNAME }}/sistema-entradas-backend:${{ needs.cd-setup.outputs.service_suffix }}-${{ github.sha }}'
-          flags: '--allow-unauthenticated --min-instances=0 --max-instances=1 --cpu=1 --memory=4gi --service-account=${{ secrets.GCP_SERVICE_ACCOUNT }}'
+          flags: '--allow-unauthenticated --min-instances=0 --max-instances=1 --cpu=1 --memory=4Gi --service-account=${{ secrets.GCP_SERVICE_ACCOUNT }}'
           env_vars: |-
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
