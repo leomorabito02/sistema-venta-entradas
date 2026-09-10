@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"time"
 
 	"backend/internal/dto"
 	"backend/internal/models"
@@ -201,22 +202,33 @@ func (s *ticketService) ValidateTicket(ctx context.Context, operatorID string, r
 	}
 
 	ticket.Status = nextStatus
-	if req.ValidationType == models.ValidationTypeEntrada {
-		now := validation.ValidatedAt
-		ticket.EntryValidatedAt = &now
-		if op, err := s.userRepo.GetByID(ctx, operatorID); err == nil && op != nil {
-			opName := op.Name
+	s.enrichTicketValidatorInfo(ctx, ticket, req.ValidationType, operatorID, validation.ValidatedAt)
+	return s.toTicketResponse(ticket), nil
+}
+
+func (s *ticketService) enrichTicketValidatorInfo(ctx context.Context, ticket *models.Ticket, vType models.ValidationType, operatorID string, validatedAt time.Time) {
+	opName := s.getOperatorName(ctx, operatorID)
+
+	switch vType {
+	case models.ValidationTypeEntrada:
+		ticket.EntryValidatedAt = &validatedAt
+		if opName != "" {
 			ticket.EntryValidatorName = &opName
 		}
-	} else if req.ValidationType == models.ValidationTypeComida {
-		now := validation.ValidatedAt
-		ticket.FoodValidatedAt = &now
-		if op, err := s.userRepo.GetByID(ctx, operatorID); err == nil && op != nil {
-			opName := op.Name
+	case models.ValidationTypeComida:
+		ticket.FoodValidatedAt = &validatedAt
+		if opName != "" {
 			ticket.FoodValidatorName = &opName
 		}
 	}
-	return s.toTicketResponse(ticket), nil
+}
+
+func (s *ticketService) getOperatorName(ctx context.Context, operatorID string) string {
+	op, err := s.userRepo.GetByID(ctx, operatorID)
+	if err == nil && op != nil {
+		return op.Name
+	}
+	return ""
 }
 
 func (s *ticketService) getTicketForValidationTx(ctx context.Context, tx *sql.Tx, req *dto.ValidateTicketRequest) (*models.Ticket, error) {

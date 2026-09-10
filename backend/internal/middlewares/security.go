@@ -94,20 +94,24 @@ func isOriginAllowed(origin string, allowedOrigins []string) bool {
 	}
 	origin = strings.TrimSuffix(origin, "/")
 	for _, allowed := range allowedOrigins {
-		allowed = strings.TrimSpace(strings.TrimSuffix(allowed, "/"))
-		if allowed == "*" || allowed == origin {
+		if matchOriginRule(origin, allowed) {
 			return true
 		}
-		if strings.HasPrefix(allowed, "*.") {
-			if strings.HasSuffix(origin, allowed[1:]) {
-				return true
-			}
-		}
-		if allowed == ".pages.dev" || allowed == "pages.dev" {
-			if strings.HasSuffix(origin, ".pages.dev") {
-				return true
-			}
-		}
+	}
+	return false
+}
+
+// matchOriginRule checks if origin satisfies a single allowed rule (exact match, wildcard, or domain suffix).
+func matchOriginRule(origin, allowed string) bool {
+	allowed = strings.TrimSpace(strings.TrimSuffix(allowed, "/"))
+	if allowed == "*" || allowed == origin {
+		return true
+	}
+	if strings.HasPrefix(allowed, "*.") && strings.HasSuffix(origin, allowed[1:]) {
+		return true
+	}
+	if (allowed == ".pages.dev" || allowed == "pages.dev") && strings.HasSuffix(origin, ".pages.dev") {
+		return true
 	}
 	return false
 }

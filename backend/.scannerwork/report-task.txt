@@ -2,5 +2,5 @@ projectKey=sistema-ventas-entradas-backend
 serverUrl=http://localhost:9000
 serverVersion=26.9.0.129388
 dashboardUrl=http://localhost:9000/dashboard?id=sistema-ventas-entradas-backend
-ceTaskId=2480e6bb-c906-4615-9fc9-2b7e2debf8a6
-ceTaskUrl=http://localhost:9000/api/ce/task?id=2480e6bb-c906-4615-9fc9-2b7e2debf8a6
+ceTaskId=be8c4ad5-ca61-461d-8144-24f547618e8b
+ceTaskUrl=http://localhost:9000/api/ce/task?id=be8c4ad5-ca61-461d-8144-24f547618e8b

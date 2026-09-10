@@ -208,7 +208,7 @@
 }
 
 .badge-simple { background: rgba(122, 0, 30, 0.1); color: var(--color-bordo, #7A001E); }
-.badge-comida { background: rgba(212, 175, 55, 0.25); color: #594300; }
+.badge-comida { background: rgba(212, 175, 55, 0.25); color: #4B3800; }
 .badge-source { background: rgba(0, 0, 0, 0.05); color: var(--text-secondary); }
 
 /* Modal Styles */
@@ -413,8 +413,8 @@
 .source-badge {
   display: inline-block;
   font-size: 0.78rem;
-  color: #0f380f;
-  background: rgba(46, 125, 50, 0.15);
+  color: #064e3b;
+  background: #d1fae5;
   padding: 0.2rem 0.5rem;
   border-radius: 4px;
   font-weight: 600;
@@ -422,8 +422,8 @@
 }
 
 .source-badge.badge-puerta {
-  color: #700909;
-  background: rgba(183, 28, 28, 0.15);
+  color: #7f1d1d;
+  background: #fee2e2;
 }
 
 .modal-footer {

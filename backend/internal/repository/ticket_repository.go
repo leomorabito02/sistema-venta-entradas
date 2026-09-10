@@ -157,14 +157,18 @@ func (r *postgresTicketRepository) RecordValidationTx(ctx context.Context, tx *s
 		Scan(&v.ID, &v.ValidatedAt)
 }
 
-func (r *postgresTicketRepository) scanTicketRow(row *sql.Row) (*models.Ticket, error) {
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+func (r *postgresTicketRepository) scanTicketRow(s rowScanner) (*models.Ticket, error) {
 	t := &models.Ticket{Buyer: &models.Buyer{}, Seller: &models.User{}}
 	var entryValAt sql.NullTime
 	var entryValName sql.NullString
 	var foodValAt sql.NullTime
 	var foodValName sql.NullString
 
-	err := row.Scan(
+	err := s.Scan(
 		&t.ID, &t.TicketNumber, &t.PublicToken, &t.FourDigitCode, &t.TicketType,
 		&t.SaleSource, &t.QuotaSource, &t.PricePaid, &t.Status, &t.BuyerID, &t.SellerID,
 		&t.CreatedAt, &t.UpdatedAt,
@@ -197,22 +201,7 @@ func (r *postgresTicketRepository) scanTicketRow(row *sql.Row) (*models.Ticket, 
 }
 
 func (r *postgresTicketRepository) ListTickets(ctx context.Context, sellerID string) ([]*models.Ticket, error) {
-	var rows *sql.Rows
-	var err error
-
-	for attempts := 0; attempts < 2; attempts++ {
-		if sellerID != "" {
-			rows, err = r.db.QueryContext(ctx, ticketBaseQuery+" WHERE t.seller_id = $1 ORDER BY t.created_at DESC", sellerID)
-		} else {
-			rows, err = r.db.QueryContext(ctx, ticketBaseQuery+" ORDER BY t.created_at DESC")
-		}
-
-		if err != nil && (strings.Contains(err.Error(), "26000") || strings.Contains(err.Error(), "unnamed prepared statement")) && attempts == 0 {
-			continue
-		}
-		break
-	}
-
+	rows, err := r.queryListTicketsRows(ctx, sellerID)
 	if err != nil {
 		return nil, err
 	}
@@ -220,39 +209,37 @@ func (r *postgresTicketRepository) ListTickets(ctx context.Context, sellerID str
 
 	var tickets []*models.Ticket
 	for rows.Next() {
-		t := &models.Ticket{Buyer: &models.Buyer{}, Seller: &models.User{}}
-		var entryValAt sql.NullTime
-		var entryValName sql.NullString
-		var foodValAt sql.NullTime
-		var foodValName sql.NullString
-
-		err := rows.Scan(
-			&t.ID, &t.TicketNumber, &t.PublicToken, &t.FourDigitCode, &t.TicketType,
-			&t.SaleSource, &t.QuotaSource, &t.PricePaid, &t.Status, &t.BuyerID, &t.SellerID,
-			&t.CreatedAt, &t.UpdatedAt,
-			&t.Buyer.FirstName, &t.Buyer.LastName, &t.Buyer.Phone, &t.Buyer.Email,
-			&t.Seller.Name, &t.Seller.Email,
-			&entryValAt, &entryValName,
-			&foodValAt, &foodValName,
-		)
+		t, err := r.scanTicketRow(rows)
 		if err != nil {
 			return nil, err
-		}
-		t.Buyer.ID = t.BuyerID
-		t.Seller.ID = t.SellerID
-		if entryValAt.Valid {
-			t.EntryValidatedAt = &entryValAt.Time
-		}
-		if entryValName.Valid {
-			t.EntryValidatorName = &entryValName.String
-		}
-		if foodValAt.Valid {
-			t.FoodValidatedAt = &foodValAt.Time
-		}
-		if foodValName.Valid {
-			t.FoodValidatorName = &foodValName.String
 		}
 		tickets = append(tickets, t)
 	}
 	return tickets, rows.Err()
+}
+
+func (r *postgresTicketRepository) queryListTicketsRows(ctx context.Context, sellerID string) (*sql.Rows, error) {
+	query := ticketBaseQuery + " ORDER BY t.created_at DESC"
+	var args []any
+	if sellerID != "" {
+		query = ticketBaseQuery + " WHERE t.seller_id = $1 ORDER BY t.created_at DESC"
+		args = append(args, sellerID)
+	}
+
+	for attempts := 0; attempts < 2; attempts++ {
+		rows, err := r.db.QueryContext(ctx, query, args...)
+		if isPreparedStatementErr(err, attempts) {
+			continue
+		}
+		return rows, err
+	}
+	return nil, nil
+}
+
+func isPreparedStatementErr(err error, attempts int) bool {
+	if err == nil || attempts != 0 {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "26000") || strings.Contains(msg, "unnamed prepared statement")
 }

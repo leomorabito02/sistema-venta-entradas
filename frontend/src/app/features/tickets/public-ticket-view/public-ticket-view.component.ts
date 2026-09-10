@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { Title, Meta } from '@angular/platform-browser';
 import QRCode from 'qrcode';
 import { ApiService, PublicTicket } from '../../../core/services/api.service';
 import { SkeletonLoaderComponent } from '../../../shared/components/skeleton-loader/skeleton-loader.component';
@@ -15,6 +16,8 @@ import { SkeletonLoaderComponent } from '../../../shared/components/skeleton-loa
 export class PublicTicketViewComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly apiService = inject(ApiService);
+  private readonly titleService = inject(Title);
+  private readonly metaService = inject(Meta);
 
   loading = signal<boolean>(true);
   errorMessage = signal<string>('');
@@ -43,6 +46,7 @@ export class PublicTicketViewComponent implements OnInit {
         if (res.success && res.data) {
           this.ticket.set(res.data);
           this.generateQrCode(res.data.four_digit_code);
+          this.updateMetaTags(res.data);
         } else {
           this.errorMessage.set(res.error || 'Bono / Ticket no encontrado o inactivo');
         }
@@ -52,6 +56,16 @@ export class PublicTicketViewComponent implements OnInit {
         this.errorMessage.set(err.error?.error || 'No se pudo cargar la información pública del ticket');
       }
     });
+  }
+
+  private updateMetaTags(t: PublicTicket): void {
+    const pageTitle = `LA PEÑA DEL SEMI - Entrada Digital #${t.ticket_number}`;
+    const pageDesc = `ENTRADA DIGITAL - ${t.buyer_name || 'Cliente'}. Código: ${t.four_digit_code}`;
+
+    this.titleService.setTitle(pageTitle);
+    this.metaService.updateTag({ property: 'og:title', content: pageTitle });
+    this.metaService.updateTag({ property: 'og:description', content: pageDesc });
+    this.metaService.updateTag({ name: 'description', content: pageDesc });
   }
 
   private generateQrCode(code: string): void {

@@ -60,15 +60,15 @@
 }
 
 .btn-activate {
-  background: rgba(34, 197, 94, 0.12);
-  color: #15803d;
-  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.2);
+  color: #0f3d21;
+  border-color: rgba(34, 197, 94, 0.4);
 }
 
 .btn-deactivate {
-  background: rgba(239, 68, 68, 0.12);
-  color: #b91c1c;
-  border-color: rgba(239, 68, 68, 0.3);
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
 }
 
 .alert {
@@ -80,9 +80,9 @@
 }
 
 .alert-success {
-  background: rgba(34, 197, 94, 0.12);
-  color: #15803d;
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.2);
+  color: #0f3d21;
+  border: 1px solid rgba(34, 197, 94, 0.4);
 }
 
 .role-select {
@@ -118,15 +118,15 @@
 }
 
 .text-warning {
-  color: #a16207;
+  color: #78350f;
 }
 
 .text-danger {
-  color: #b91c1c;
+  color: #7f1d1d;
 }
 
 .text-success {
-  color: #15803d;
+  color: #14532d;
 }
 
 .quota-config-grid {
