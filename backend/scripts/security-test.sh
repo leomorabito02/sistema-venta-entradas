@@ -65,7 +65,7 @@ else
   sleep 5
 
   export DATABASE_URL="postgres://postgres:postgres@localhost:5432/testdb?sslmode=disable"
-  export JWT_SECRET="Kj8mN2pQr5vXz9LbWc3tYs7uFhAe1DgHiJmMpNq4Ovs="
+  export JWT_SECRET="Kj8mN2pQr5vXz9LbWc3tYs7uFhAe1DgHiJmMpNq4Ovs=" # gitleaks:allow
   export JWT_ACCESS_EXPIRATION_MINUTES="15"
   export ALLOWED_ORIGINS="http://localhost:4200"
   export INITIAL_ADMIN_EMAIL="admin@sistema.com"
