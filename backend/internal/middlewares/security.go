@@ -3,6 +3,7 @@ package middlewares
 import (
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"backend/internal/models"
@@ -91,9 +92,21 @@ func isOriginAllowed(origin string, allowedOrigins []string) bool {
 	if origin == "" {
 		return false
 	}
+	origin = strings.TrimSuffix(origin, "/")
 	for _, allowed := range allowedOrigins {
+		allowed = strings.TrimSpace(strings.TrimSuffix(allowed, "/"))
 		if allowed == "*" || allowed == origin {
 			return true
+		}
+		if strings.HasPrefix(allowed, "*.") {
+			if strings.HasSuffix(origin, allowed[1:]) {
+				return true
+			}
+		}
+		if allowed == ".pages.dev" || allowed == "pages.dev" {
+			if strings.HasSuffix(origin, ".pages.dev") {
+				return true
+			}
 		}
 	}
 	return false

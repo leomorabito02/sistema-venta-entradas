@@ -101,19 +101,19 @@ a {
   transform: translateY(0);
 }
 
-.neu-btn-bordo {
+.neu-btn-bordo, .neu-btn.neu-btn-bordo {
   background: var(--color-bordo);
   color: #FFFFFF;
   border: 1px solid rgba(212, 175, 55, 0.4);
   box-shadow: var(--neu-shadow-bordo);
 }
 
-.neu-btn-bordo:hover:not(:disabled) {
+.neu-btn-bordo:hover:not(:disabled), .neu-btn.neu-btn-bordo:hover:not(:disabled) {
   background: var(--color-bordo-hover);
   color: var(--color-gold);
 }
 
-.neu-btn-bordo:active:not(:disabled) {
+.neu-btn-bordo:active:not(:disabled), .neu-btn.neu-btn-bordo:active:not(:disabled) {
   box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.4);
 }
 
