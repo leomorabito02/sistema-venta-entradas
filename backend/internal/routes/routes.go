@@ -72,9 +72,19 @@ func SetupRoutes(cfg RouterConfig) http.Handler {
 	handler = middlewares.MaxBodySize(1<<20, cfg.JSONView)(handler) // 1MB payload limit
 	handler = middlewares.SecurityHeaders(handler)
 
-	allowedOrigins := []string{"http://localhost:4200", "http://localhost:3000", "http://127.0.0.1:4200"}
+	allowedOrigins := []string{
+		"http://localhost:4200",
+		"http://localhost:3000",
+		"http://127.0.0.1:4200",
+		"https://la-pena-semi-2026.pages.dev",
+		".pages.dev",
+	}
 	if envOrigin := os.Getenv("ALLOWED_ORIGINS"); envOrigin != "" {
-		allowedOrigins = strings.Split(envOrigin, ",")
+		for _, o := range strings.Split(envOrigin, ",") {
+			if trimmed := strings.TrimSpace(o); trimmed != "" {
+				allowedOrigins = append(allowedOrigins, trimmed)
+			}
+		}
 	}
 	handler = middlewares.CORS(allowedOrigins)(handler)
 	handler = middlewares.ValidateAntiCSRF(cfg.JSONView)(handler)
