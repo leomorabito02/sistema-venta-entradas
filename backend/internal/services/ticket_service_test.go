@@ -116,7 +116,10 @@ func (d *dummyQuotaRepo) GetSellerQuota(ctx context.Context, sellerID string) (*
 func (d *dummyQuotaRepo) GetGlobalFreeQuota(ctx context.Context) (*models.GlobalFreeQuota, error) {
 	return &models.GlobalFreeQuota{}, nil
 }
-func (d *dummyQuotaRepo) DeductPresaleQuotaTx(ctx context.Context, tx *sql.Tx, sellerID string) (models.QuotaSource, error) {
+func (d *dummyQuotaRepo) DeductPresaleQuotaTx(ctx context.Context, tx *sql.Tx, sellerID string, preferredSource models.QuotaSource) (models.QuotaSource, error) {
+	if preferredSource == models.QuotaSourceLibre {
+		return models.QuotaSourceLibre, nil
+	}
 	return models.QuotaSourcePersonal, nil
 }
 func (d *dummyQuotaRepo) RestoreQuotaTx(ctx context.Context, tx *sql.Tx, sellerID string, quotaSource models.QuotaSource) error {
@@ -130,6 +133,15 @@ func (d *dummyQuotaRepo) SetAllSellersPersonalQuota(ctx context.Context, adminID
 }
 func (d *dummyQuotaRepo) SetGlobalFreeQuota(ctx context.Context, adminID string, totalFree int) error {
 	return nil
+}
+func (d *dummyQuotaRepo) GetDefaultQuotaConfig(ctx context.Context) (int, error) {
+	return 0, nil
+}
+func (d *dummyQuotaRepo) GetAllSellersQuotas(ctx context.Context) ([]*models.SellerQuotaDetail, error) {
+	return nil, nil
+}
+func (d *dummyQuotaRepo) GetFreeQuotaUsageBySeller(ctx context.Context) ([]*models.SellerFreeQuotaUsage, error) {
+	return nil, nil
 }
 
 type dummyPriceRepo struct{}

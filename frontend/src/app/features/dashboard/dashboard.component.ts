@@ -228,7 +228,9 @@ export class DashboardComponent implements OnInit {
   showIssueModal = signal<boolean>(false);
   issueStep = signal<number>(1);
   newTicketType = signal<'SIMPLE' | 'CON_COMIDA'>('SIMPLE');
-  newSaleSource = signal<'ANTICIPADA' | 'PUERTA'>('ANTICIPADA');
+  quotaOption = signal<'PERSONAL' | 'LIBRE' | 'PUERTA'>('PERSONAL');
+  personalQuotaAvailable = signal<number | null>(null);
+  globalFreeQuotaAvailable = signal<number | null>(null);
   buyerFirstName = signal<string>('');
   buyerLastName = signal<string>('');
   buyerPhone = signal<string>('');
@@ -245,7 +247,7 @@ export class DashboardComponent implements OnInit {
   openIssueModal(): void {
     this.issueStep.set(1);
     this.newTicketType.set('SIMPLE');
-    this.newSaleSource.set('ANTICIPADA');
+    this.quotaOption.set('PERSONAL');
     this.buyerFirstName.set('');
     this.buyerLastName.set('');
     this.buyerPhone.set('');
@@ -254,6 +256,30 @@ export class DashboardComponent implements OnInit {
     this.createdTicket.set(null);
     this.copiedPublicUrl.set(false);
     this.showIssueModal.set(true);
+
+    const userId = this.authService.currentUser()?.id;
+    if (userId) {
+      this.apiService.getSellerQuota(userId).subscribe({
+        next: (res) => {
+          if (res.success && res.data) {
+            const assigned = res.data.assigned_quota ?? 0;
+            const used = res.data.used_quota ?? 0;
+            const avail = assigned - used;
+            this.personalQuotaAvailable.set(avail < 0 ? 0 : avail);
+          }
+        }
+      });
+    }
+    this.apiService.getGlobalFreeQuota().subscribe({
+      next: (res) => {
+        if (res.success && res.data) {
+          const total = res.data.total_free_quota ?? 0;
+          const used = res.data.used_free_quota ?? 0;
+          const avail = total - used;
+          this.globalFreeQuotaAvailable.set(avail < 0 ? 0 : avail);
+        }
+      }
+    });
   }
 
   closeIssueModal(): void {
@@ -275,9 +301,24 @@ export class DashboardComponent implements OnInit {
     this.issuingTicket.set(true);
     this.issueErrorMessage.set('');
 
+    const opt = this.quotaOption();
+    let saleSource: 'ANTICIPADA' | 'PUERTA' = 'ANTICIPADA';
+    let quotaSource: 'PERSONAL' | 'LIBRE' | undefined = undefined;
+
+    if (opt === 'PERSONAL') {
+      saleSource = 'ANTICIPADA';
+      quotaSource = 'PERSONAL';
+    } else if (opt === 'LIBRE') {
+      saleSource = 'ANTICIPADA';
+      quotaSource = 'LIBRE';
+    } else {
+      saleSource = 'PUERTA';
+    }
+
     const payload = {
       ticket_type: this.newTicketType(),
-      sale_source: this.newSaleSource(),
+      sale_source: saleSource,
+      quota_source: quotaSource,
       first_name: this.buyerFirstName().trim(),
       last_name: this.buyerLastName().trim(),
       phone: this.buyerPhone().trim(),
@@ -311,5 +352,15 @@ export class DashboardComponent implements OnInit {
       this.copiedPublicUrl.set(true);
       setTimeout(() => this.copiedPublicUrl.set(false), 2500);
     });
+  }
+
+  formatStatus(status?: string): string {
+    if (!status) return '';
+    return status.replace(/_/g, ' ');
+  }
+
+  formatType(type?: string): string {
+    if (!type) return '';
+    return type.replace(/_/g, ' ');
   }
 }

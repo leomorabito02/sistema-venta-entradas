@@ -1,7 +1,7 @@
 <div class="validate-container">
   <header class="page-header">
     <h1><svg class="icon" viewBox="0 0 24 24"><path d="M3 11h18"/><path d="M5 11C5 7.13 8.13 4 12 4s7 3.13 7 7"/><path d="M4 15h16a1 1 0 0 1 1 1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1z"/><path d="M6 11v4"/><path d="M18 11v4"/></svg> Validar Entrega de Comida</h1>
-    <p class="subtitle">Verifica y entrega la ración de comida a bonos 'CON_COMIDA' previamente ingresados</p>
+    <p class="subtitle">Verifica y entrega 1 Choripán a bonos 'CON COMIDA' previamente ingresados</p>
   </header>
 
   <!-- Selection Modes Tabs -->
@@ -129,7 +129,7 @@
             <span>Comprador: {{ t.buyerName || 'N/A' }}</span>
             <span>Vendedor: {{ t.sellerName || 'N/A' }}</span>
           </div>
-          <span class="neu-badge" [ngClass]="getStatusBadgeClass(t.status)">{{ t.status }}</span>
+          <span class="neu-badge" [ngClass]="getStatusBadgeClass(t.status)">{{ formatStatus(t.status) }}</span>
         </button>
       </div>
       <div *ngIf="isSearching() && filteredTickets().length === 0" class="no-results">
@@ -150,9 +150,9 @@
       <div class="card-header">
         <h2>Bono #{{ ticket.ticketNumber }}</h2>
         <div class="badge-group">
-          <span class="neu-badge badge-type">{{ ticket.ticketType }}</span>
+          <span class="neu-badge badge-type">{{ formatType(ticket.ticketType) }}</span>
           <span class="neu-badge" [ngClass]="getStatusBadgeClass(ticket.status)">
-            {{ ticket.status }}
+            {{ formatStatus(ticket.status) }}
           </span>
         </div>
       </div>
@@ -172,30 +172,44 @@
         </div>
         <div class="detail-item">
           <span class="label">Tipo de Bono:</span>
-          <span class="value">{{ ticket.ticketType }}</span>
+          <span class="value">{{ formatType(ticket.ticketType) }}</span>
         </div>
         <div class="detail-item">
           <span class="label">Estado Actual:</span>
-          <span class="value">{{ ticket.status }}</span>
+          <span class="value">{{ formatStatus(ticket.status) }}</span>
         </div>
-        <div class="detail-item">
-          <span class="label">Monto Pagado:</span>
-          <span class="value">${{ ticket.pricePaid }}</span>
+        <div class="detail-item" *ngIf="ticket.entryValidatedAt">
+          <span class="label">Entrada Validada:</span>
+          <span class="value">
+            {{ ticket.entryValidatedAt | date:'dd/MM/yyyy HH:mm' }} hs
+            <span *ngIf="ticket.entryValidatorName"> por {{ ticket.entryValidatorName }}</span>
+          </span>
+        </div>
+        <div class="detail-item" *ngIf="ticket.foodValidatedAt">
+          <span class="label">Choripán Entregado:</span>
+          <span class="value">
+            {{ ticket.foodValidatedAt | date:'dd/MM/yyyy HH:mm' }} hs
+            <span *ngIf="ticket.foodValidatorName"> por {{ ticket.foodValidatorName }}</span>
+          </span>
         </div>
       </div>
 
       <!-- VALIDATION RULES FOR FOOD: CON_COMIDA AND PREVIOUSLY USADO_ENTRADA ONLY -->
       <div class="validation-rules-notice">
         <div *ngIf="ticket.ticketType !== 'CON_COMIDA'" class="rule-banner alert-error">
-          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> <strong>TIPO DE BONO INVÁLIDO:</strong> Este bono es de tipo <code>{{ ticket.ticketType }}</code> y NO incluye beneficio de comida.
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> <strong>TIPO DE BONO INVÁLIDO:</strong> Este bono es de tipo <code>{{ formatType(ticket.ticketType) }}</code> y NO incluye 1 Choripán.
         </div>
 
         <div *ngIf="ticket.ticketType === 'CON_COMIDA' && ticket.status === 'VENDIDO'" class="rule-banner alert-warning">
           <svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> <strong>ENTRADA NO VALIDADA:</strong> El bono incluye comida, pero primero se debe validar la entrada en puerta (estado actual: <code>VENDIDO</code>).
         </div>
 
-        <div *ngIf="ticket.status === 'USADO_COMIDA'" class="rule-banner alert-warning">
-          <svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> <strong>COMIDA YA ENTREGADA:</strong> La ración de comida de este bono ya fue retirada previamente.
+        <div *ngIf="!justValidated() && ticket.status === 'USADO_COMIDA'" class="rule-banner alert-warning">
+          <svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> <strong>CHORIPÁN YA ENTREGADO:</strong> El 1 Choripán de este bono ya fue retirado previamente.
+          <span *ngIf="ticket.foodValidatedAt">
+            Entregado el <strong>{{ ticket.foodValidatedAt | date:'dd/MM/yyyy HH:mm' }} hs</strong>
+            <span *ngIf="ticket.foodValidatorName"> por <strong>{{ ticket.foodValidatorName }}</strong></span>.
+          </span>
         </div>
 
         <div *ngIf="ticket.status === 'ANULADO'" class="rule-banner alert-error">
@@ -203,18 +217,19 @@
         </div>
 
         <div *ngIf="ticket.ticketType === 'CON_COMIDA' && ticket.status === 'USADO_ENTRADA'" class="rule-banner alert-info">
-          <svg class="icon" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> <strong>ELEGIBLE PARA COMIDA:</strong> El asistente ingresó previamente y su bono es de tipo <code>CON_COMIDA</code>. Listo para validar entrega.
+          <svg class="icon" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> <strong>ELEGIBLE PARA CHORIPÁN:</strong> El asistente ingresó previamente y su bono es de tipo <code>CON COMIDA</code>. Listo para entregar 1 Choripán.
         </div>
       </div>
 
       <!-- ACTIONS -->
       <div class="card-actions">
         <button
+          *ngIf="ticket.ticketType === 'CON_COMIDA' && ticket.status === 'USADO_ENTRADA'"
           (click)="validateFood()"
-          [disabled]="ticket.ticketType !== 'CON_COMIDA' || ticket.status !== 'USADO_ENTRADA' || validating()"
+          [disabled]="validating()"
           class="neu-btn neu-btn-bordo btn-validate">
           <span *ngIf="validating()" class="neu-spinner"></span>
-          <span>{{ validating() ? 'Procesando...' : 'Confirmar y Entregar Comida (USADO_COMIDA)' }}</span>
+          <span>{{ validating() ? 'Procesando...' : 'Confirmar y Entregar 1 Choripán' }}</span>
         </button>
         
         <button (click)="clearSelection()" class="neu-btn">

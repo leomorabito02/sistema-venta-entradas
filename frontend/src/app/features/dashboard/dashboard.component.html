@@ -213,7 +213,7 @@
               <td>{{ t.buyerName || 'Cliente General' }}</td>
               <td>
                 <span class="badge" [class.badge-simple]="t.ticketType === 'SIMPLE'" [class.badge-comida]="t.ticketType === 'CON_COMIDA'">
-                  {{ t.ticketType }}
+                  {{ formatType(t.ticketType) }}
                 </span>
               </td>
               <td><span class="badge badge-source">{{ t.saleSource }}</span></td>
@@ -224,7 +224,7 @@
                   'neu-badge-usado': t.status === 'USADO_ENTRADA' || t.status === 'USADO_COMIDA',
                   'neu-badge-anulado': t.status === 'ANULADO'
                 }">
-                  {{ t.status }}
+                  {{ formatStatus(t.status) }}
                 </span>
               </td>
             </tr>
@@ -244,11 +244,20 @@
 
       <!-- Step Indicator -->
       <div *ngIf="issueStep() < 4" class="step-indicator">
-        <div class="step-item" [class.active]="issueStep() === 1" [class.completed]="issueStep() > 1">1. Tipo & Precio</div>
-        <div class="step-line"></div>
-        <div class="step-item" [class.active]="issueStep() === 2" [class.completed]="issueStep() > 2">2. Comprador</div>
-        <div class="step-line"></div>
-        <div class="step-item" [class.active]="issueStep() === 3">3. Resumen</div>
+        <div class="step-item" [class.active]="issueStep() === 1" [class.completed]="issueStep() > 1">
+          <span class="step-number">1</span>
+          <span class="step-title">Tipo & Precio</span>
+        </div>
+        <div class="step-line" [class.completed]="issueStep() > 1"></div>
+        <div class="step-item" [class.active]="issueStep() === 2" [class.completed]="issueStep() > 2">
+          <span class="step-number">2</span>
+          <span class="step-title">Comprador</span>
+        </div>
+        <div class="step-line" [class.completed]="issueStep() > 2"></div>
+        <div class="step-item" [class.active]="issueStep() === 3">
+          <span class="step-number">3</span>
+          <span class="step-title">Resumen</span>
+        </div>
       </div>
 
       <div *ngIf="issueErrorMessage()" class="alert alert-danger">
@@ -258,7 +267,7 @@
       <!-- STEP 1: Selection of Ticket Type & Sale Source -->
       <div *ngIf="issueStep() === 1" class="modal-body">
         <h3>1. Selecciona el Tipo de Entrada</h3>
-        <p class="modal-subtitle">Los precios corresponden a los configurados activamente en la base de datos.</p>
+        <p class="modal-subtitle">Los precios corresponden a los configurados activamente en el sistema.</p>
         
         <div class="ticket-type-selector">
           <button type="button" class="type-card neu-card" [class.selected]="newTicketType() === 'SIMPLE'" (click)="newTicketType.set('SIMPLE')">
@@ -272,21 +281,55 @@
             <div class="type-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M3 11h18"/><path d="M5 11C5 7.13 8.13 4 12 4s7 3.13 7 7"/><path d="M4 15h16a1 1 0 0 1 1 1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1z"/></svg></div>
             <div class="type-title">Bono con Comida</div>
             <div class="type-price">${{ priceConComida() | number:'1.2-2' }}</div>
-            <p>Acceso al seminario + menú de comida incluido.</p>
+            <p>Acceso al seminario + 1 Choripán incluido.</p>
           </button>
         </div>
 
-        <div class="form-group" style="margin-top: 1.5rem;">
-          <span class="label-title">Canal / Origen de Venta:</span>
-          <div class="radio-group">
-            <label class="radio-label">
-              <input type="radio" name="saleSource" value="ANTICIPADA" [checked]="newSaleSource() === 'ANTICIPADA'" (change)="newSaleSource.set('ANTICIPADA')">
-              Venta Anticipada (Descuenta de Cuota)
-            </label>
-            <label class="radio-label">
-              <input type="radio" name="saleSource" value="PUERTA" [checked]="newSaleSource() === 'PUERTA'" (change)="newSaleSource.set('PUERTA')">
-              Venta en Puerta
-            </label>
+        <div class="sale-source-container">
+          <label class="label-title">Fuente / Origen de Emisión:</label>
+          <div class="sale-source-cards">
+            <button
+              type="button"
+              class="source-card neu-card"
+              [class.selected]="quotaOption() === 'PERSONAL'"
+              (click)="quotaOption.set('PERSONAL')"
+            >
+              <div class="source-header">
+                <svg class="icon source-icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span class="source-title">Mi Cuota Personal</span>
+              </div>
+              <span class="source-badge">
+                {{ personalQuotaAvailable() !== null ? personalQuotaAvailable() + ' disponibles' : 'Cargando...' }}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              class="source-card neu-card"
+              [class.selected]="quotaOption() === 'LIBRE'"
+              (click)="quotaOption.set('LIBRE')"
+            >
+              <div class="source-header">
+                <svg class="icon source-icon-svg" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                <span class="source-title">Bolsón Libre Global</span>
+              </div>
+              <span class="source-badge">
+                {{ globalFreeQuotaAvailable() !== null ? globalFreeQuotaAvailable() + ' disponibles' : 'Cargando...' }}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              class="source-card neu-card"
+              [class.selected]="quotaOption() === 'PUERTA'"
+              (click)="quotaOption.set('PUERTA')"
+            >
+              <div class="source-header">
+                <svg class="icon source-icon-svg" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"/><circle cx="14" cy="12" r="1"/></svg>
+                <span class="source-title">Venta en Puerta</span>
+              </div>
+              <span class="source-badge badge-puerta">Sin restricción</span>
+            </button>
           </div>
         </div>
 
@@ -340,8 +383,8 @@
             <strong>{{ newTicketType() === 'CON_COMIDA' ? 'CON COMIDA' : 'SIMPLE' }}</strong>
           </div>
           <div class="summary-item">
-            <span>Canal de Venta:</span>
-            <strong>{{ newSaleSource() }}</strong>
+            <span>Fuente de Emisión:</span>
+            <strong>{{ quotaOption() === 'PERSONAL' ? 'Mi Cuota Personal' : (quotaOption() === 'LIBRE' ? 'Bolsón Libre Global' : 'Venta en Puerta') }}</strong>
           </div>
           <div class="summary-item">
             <span>Precio Total:</span>

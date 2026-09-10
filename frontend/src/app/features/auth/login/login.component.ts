@@ -23,6 +23,7 @@ export class LoginComponent {
   successMessage = '';
 
   async onGoogleSignIn(mode: 'login' | 'register'): Promise<void> {
+    if (this.loading) return;
     this.loading = true;
     this.actionType = mode;
     this.errorMessage = '';
@@ -53,7 +54,14 @@ export class LoginComponent {
     } catch (err: any) {
       this.loading = false;
       this.actionType = null;
-      this.errorMessage = err.message || 'Se canceló la ventana de autenticación de Google';
+      const errorCode = err?.code || '';
+      if (errorCode === 'auth/popup-closed-by-user' || errorCode === 'auth/cancelled-popup-request') {
+        this.errorMessage = 'El inicio de sesión fue cancelado.';
+      } else if (errorCode === 'auth/popup-blocked') {
+        this.errorMessage = 'Ventana emergente bloqueada por el navegador. Habilite los emergentes para este sitio.';
+      } else {
+        this.errorMessage = err?.message || 'Se canceló la ventana de autenticación de Google';
+      }
     }
   }
 

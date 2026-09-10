@@ -48,7 +48,11 @@ export class ApiService {
       pricePaid: t.price_paid,
       sellerId: t.seller_id || t.seller?.id,
       sellerName: t.seller?.name,
-      buyerName: t.buyer ? `${t.buyer.first_name} ${t.buyer.last_name}` : undefined
+      buyerName: t.buyer ? `${t.buyer.first_name} ${t.buyer.last_name}` : undefined,
+      entryValidatedAt: t.entry_validated_at,
+      entryValidatorName: t.entry_validator_name,
+      foodValidatedAt: t.food_validated_at,
+      foodValidatorName: t.food_validator_name
     };
   }
 
@@ -111,6 +115,22 @@ export class ApiService {
 
   updateQuota(req: UpdateQuotaRequest): Observable<ApiResponse<null>> {
     return this.http.put<ApiResponse<null>>(`${this.baseUrl}/api/quotas`, req);
+  }
+
+  getAdminQuotaOverview(): Observable<ApiResponse<import('../models/api.models').AdminQuotaOverviewResponse>> {
+    return this.http.get<ApiResponse<import('../models/api.models').AdminQuotaOverviewResponse>>(`${this.baseUrl}/api/admin/quotas/overview`);
+  }
+
+  getDefaultQuotaConfig(): Observable<ApiResponse<import('../models/api.models').DefaultQuotaConfigResponse>> {
+    return this.http.get<ApiResponse<import('../models/api.models').DefaultQuotaConfigResponse>>(`${this.baseUrl}/api/admin/quotas/config`);
+  }
+
+  updateDefaultQuotaConfig(defaultPersonalQuota: number): Observable<ApiResponse<null>> {
+    return this.http.put<ApiResponse<null>>(`${this.baseUrl}/api/admin/quotas/config`, { default_personal_quota: defaultPersonalQuota });
+  }
+
+  getExhaustedSellers(): Observable<ApiResponse<import('../models/api.models').SellerQuotaDetail[]>> {
+    return this.http.get<ApiResponse<import('../models/api.models').SellerQuotaDetail[]>>(`${this.baseUrl}/api/admin/quotas/exhausted`);
   }
 
   // Admin User Management

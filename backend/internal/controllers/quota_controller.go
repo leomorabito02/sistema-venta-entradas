@@ -86,3 +86,55 @@ func (c *QuotaController) UpdateQuota(w http.ResponseWriter, r *http.Request) {
 
 	c.jsonView.Success(w, http.StatusOK, "Quota updated successfully", nil)
 }
+
+func (c *QuotaController) GetDefaultQuotaConfig(w http.ResponseWriter, r *http.Request) {
+	resp, err := c.quotaService.GetDefaultQuotaConfig(r.Context())
+	if err != nil {
+		c.jsonView.Error(w, 0, "", err)
+		return
+	}
+	c.jsonView.Success(w, http.StatusOK, "Default quota config retrieved successfully", resp)
+}
+
+func (c *QuotaController) UpdateDefaultQuotaConfig(w http.ResponseWriter, r *http.Request) {
+	adminID := r.Header.Get("X-User-ID")
+	if adminID == "" {
+		adminID = "00000000-0000-0000-0000-000000000000"
+	}
+
+	var req dto.UpdateDefaultQuotaRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		c.jsonView.Error(w, http.StatusBadRequest, "Invalid request payload format", err)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		c.jsonView.Error(w, http.StatusBadRequest, err.Error(), err)
+		return
+	}
+
+	if err := c.quotaService.UpdateDefaultQuotaConfig(r.Context(), adminID, req.DefaultPersonalQuota); err != nil {
+		c.jsonView.Error(w, 0, "", err)
+		return
+	}
+
+	c.jsonView.Success(w, http.StatusOK, "Default personal quota updated successfully", nil)
+}
+
+func (c *QuotaController) GetAdminQuotaOverview(w http.ResponseWriter, r *http.Request) {
+	overview, err := c.quotaService.GetAdminQuotaOverview(r.Context())
+	if err != nil {
+		c.jsonView.Error(w, 0, "", err)
+		return
+	}
+	c.jsonView.Success(w, http.StatusOK, "Admin quota overview retrieved successfully", overview)
+}
+
+func (c *QuotaController) GetExhaustedSellers(w http.ResponseWriter, r *http.Request) {
+	exhausted, err := c.quotaService.GetExhaustedSellers(r.Context())
+	if err != nil {
+		c.jsonView.Error(w, 0, "", err)
+		return
+	}
+	c.jsonView.Success(w, http.StatusOK, "Exhausted sellers retrieved successfully", exhausted)
+}

@@ -129,7 +129,7 @@
             <span>Comprador: {{ t.buyerName || 'N/A' }}</span>
             <span>Vendedor: {{ t.sellerName || 'N/A' }}</span>
           </div>
-          <span class="neu-badge" [ngClass]="getStatusBadgeClass(t.status)">{{ t.status }}</span>
+          <span class="neu-badge" [ngClass]="getStatusBadgeClass(t.status)">{{ formatStatus(t.status) }}</span>
         </button>
       </div>
       <div *ngIf="isSearching() && filteredTickets().length === 0" class="no-results">
@@ -150,7 +150,7 @@
       <div class="card-header">
         <h2>Bono #{{ ticket.ticketNumber }}</h2>
         <span class="neu-badge" [ngClass]="getStatusBadgeClass(ticket.status)">
-          {{ ticket.status }}
+          {{ formatStatus(ticket.status) }}
         </span>
       </div>
 
@@ -169,7 +169,7 @@
         </div>
         <div class="detail-item">
           <span class="label">Tipo de Bono:</span>
-          <span class="value">{{ ticket.ticketType }}</span>
+          <span class="value">{{ formatType(ticket.ticketType) }}</span>
         </div>
         <div class="detail-item">
           <span class="label">Origen Venta:</span>
@@ -179,6 +179,13 @@
           <span class="label">Monto Pagado:</span>
           <span class="value">${{ ticket.pricePaid }}</span>
         </div>
+        <div class="detail-item" *ngIf="ticket.entryValidatedAt">
+          <span class="label">Entrada Validada:</span>
+          <span class="value">
+            {{ ticket.entryValidatedAt | date:'dd/MM/yyyy HH:mm' }} hs
+            <span *ngIf="ticket.entryValidatorName"> por {{ ticket.entryValidatorName }}</span>
+          </span>
+        </div>
       </div>
 
       <!-- VALIDATION STATUS ELIGIBILITY RULES -->
@@ -187,8 +194,13 @@
           <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> <strong>BONO ANULADO:</strong> Este bono ha sido anulado. No es posible validar la entrada.
         </div>
         
-        <div *ngIf="ticket.status === 'USADO_ENTRADA' || ticket.status === 'USADO_COMIDA'" class="rule-banner alert-warning">
-          <svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> <strong>BONO YA USADO:</strong> El estado actual es <code>{{ ticket.status }}</code>. Este bono ya fue utilizado previamente.
+        <div *ngIf="!justValidated() && (ticket.status === 'USADO_ENTRADA' || ticket.status === 'USADO_COMIDA')" class="rule-banner alert-warning">
+          <svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> <strong>BONO YA USADO:</strong> El estado actual es <code>{{ formatStatus(ticket.status) }}</code>.
+          <span *ngIf="ticket.entryValidatedAt">
+            Validado el <strong>{{ ticket.entryValidatedAt | date:'dd/MM/yyyy HH:mm' }} hs</strong>
+            <span *ngIf="ticket.entryValidatorName"> por <strong>{{ ticket.entryValidatorName }}</strong></span>.
+          </span>
+          <span *ngIf="!ticket.entryValidatedAt">Este bono ya fue utilizado previamente.</span>
         </div>
 
         <div *ngIf="ticket.status === 'VENDIDO'" class="rule-banner alert-info">
@@ -199,11 +211,12 @@
       <!-- ACTIONS -->
       <div class="card-actions">
         <button
+          *ngIf="ticket.status === 'VENDIDO'"
           (click)="validateEntry()"
-          [disabled]="ticket.status !== 'VENDIDO' || validating()"
+          [disabled]="validating()"
           class="neu-btn neu-btn-bordo btn-validate">
           <span *ngIf="validating()" class="neu-spinner"></span>
-          <span>{{ validating() ? 'Validando...' : 'Confirmar y Validar Entrada (USADO_ENTRADA)' }}</span>
+          <span>{{ validating() ? 'Validando...' : 'Confirmar y Validar Entrada' }}</span>
         </button>
         
         <button (click)="clearSelection()" class="neu-btn">

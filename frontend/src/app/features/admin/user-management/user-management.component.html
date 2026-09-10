@@ -81,10 +81,195 @@
           </tr>
         </tbody>
       </table>
-    </div>
-
     <ng-template #emptyState>
       <p class="empty-msg">No se encontraron usuarios o aún no se han cargado.</p>
+    </ng-template>
+  </div>
+</div>
+
+  <div class="neu-card section-card margin-top">
+    <div class="header-action">
+      <h3>Configuración Global de Cuotas</h3>
+      <button (click)="loadQuotaOverview()" [disabled]="loadingQuota()" class="neu-btn neu-btn-bordo">
+        <span *ngIf="loadingQuota()" class="neu-spinner"></span>
+        <span>Recargar Cuotas</span>
+      </button>
+    </div>
+
+    <div class="quota-config-grid" *ngIf="quotaOverview() as overview">
+      <!-- Default Initial Quota Card -->
+      <div class="quota-box">
+        <h4>Cuota Inicial por Defecto (Nuevos Vendedores)</h4>
+        <p class="desc">Asigna automáticamente esta cantidad de entradas a cada nuevo vendedor registrado.</p>
+        <div class="form-row">
+          <label for="default-quota-input" class="sr-only">Cuota inicial por defecto</label>
+          <input
+            id="default-quota-input"
+            type="number"
+            min="0"
+            [(ngModel)]="defaultQuotaInput"
+            class="neu-input"
+            placeholder="Cuota inicial"
+            aria-label="Cuota inicial por defecto"
+          />
+          <button (click)="saveDefaultQuota()" [disabled]="savingDefaultQuota" class="neu-btn neu-btn-bordo">
+            <span *ngIf="savingDefaultQuota" class="neu-spinner"></span>
+            <span>Guardar Defecto</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Global Free Quota Pool Card -->
+      <div class="quota-box">
+        <h4>Bolsón de Cuota Libre Global</h4>
+        <p class="desc">Total de entradas libres compartidas cuando a un vendedor se le agota su cuota personal.</p>
+        <div class="form-row">
+          <label for="free-quota-input" class="sr-only">Cuota libre global</label>
+          <input
+            id="free-quota-input"
+            type="number"
+            min="0"
+            [(ngModel)]="freeQuotaInput"
+            class="neu-input"
+            placeholder="Cuota libre global"
+            aria-label="Cuota libre global"
+          />
+          <button (click)="saveFreeQuota()" [disabled]="savingFreeQuota" class="neu-btn neu-btn-bordo">
+            <span *ngIf="savingFreeQuota" class="neu-spinner"></span>
+            <span>Actualizar Bolsón</span>
+          </button>
+        </div>
+        <div class="quota-stats-mini">
+          <span>Totales: <strong>{{ overview.global_free_quota.total_free_quota }}</strong></span>
+          <span>Usadas: <strong>{{ overview.global_free_quota.used_free_quota }}</strong></span>
+          <span>Restantes: <strong class="text-success">{{ overview.global_free_quota.available_quota }}</strong></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alert: Exhausted Sellers -->
+  <div class="neu-card section-card margin-top warning-card" *ngIf="quotaOverview()?.exhausted_sellers?.length">
+    <div class="header-action">
+      <h3 class="text-warning"><svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Usuarios Sin Cuota Personal ({{ quotaOverview()?.exhausted_sellers?.length }})</h3>
+    </div>
+    <div class="table-responsive">
+      <table class="user-table">
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Email</th>
+            <th>Cuota Asignada</th>
+            <th>Usada Personal</th>
+            <th>Restante Personal</th>
+            <th>Usada Libre</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of quotaOverview()?.exhausted_sellers">
+            <td><strong>{{ s.seller_name }}</strong></td>
+            <td>{{ s.seller_email }}</td>
+            <td>{{ s.assigned_quota }}</td>
+            <td>{{ s.used_quota }}</td>
+            <td><span class="neu-badge neu-badge-anulado">0 (Agotada)</span></td>
+            <td>{{ s.used_free_quota }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Free Quota Usage Breakdown -->
+  <div class="neu-card section-card margin-top" *ngIf="quotaOverview()?.free_quota_usage_by_seller?.length">
+    <div class="header-action">
+      <h3>Uso de Cuota Libre por Usuario</h3>
+    </div>
+    <div class="table-responsive">
+      <table class="user-table">
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Email</th>
+            <th>Entradas de Cuota Libre Usadas</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let u of quotaOverview()?.free_quota_usage_by_seller">
+            <td><strong>{{ u.seller_name }}</strong></td>
+            <td>{{ u.seller_email }}</td>
+            <td><span class="neu-badge neu-badge-usado">{{ u.used_free_quota }} entradas</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Sellers Quota Detail & Management Table -->
+  <div class="neu-card section-card margin-top" *ngIf="quotaOverview() as overview">
+    <div class="header-action">
+      <h3>Cuotas Restantes y Gestión por Usuario (Vendedores y Administradores)</h3>
+    </div>
+    <div class="table-responsive">
+      <table class="user-table" *ngIf="overview.sellers_quotas.length > 0; else noSellers">
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Email</th>
+            <th>Cuota Asignada</th>
+            <th>Usada Personal</th>
+            <th>Restante Personal</th>
+            <th>Usada Libre</th>
+            <th>Estado Cuota</th>
+            <th>Modificar Cuota</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of overview.sellers_quotas">
+            <td><strong>{{ s.seller_name }}</strong></td>
+            <td>{{ s.seller_email }}</td>
+            <td>{{ s.assigned_quota }}</td>
+            <td>{{ s.used_quota }}</td>
+            <td>
+              <strong [class.text-danger]="s.remaining_personal === 0">
+                {{ s.remaining_personal }}
+              </strong>
+            </td>
+            <td>{{ s.used_free_quota }}</td>
+            <td>
+              <span class="neu-badge" [ngClass]="{
+                'neu-badge-anulado': s.is_personal_exhausted,
+                'neu-badge-vendido': !s.is_personal_exhausted
+              }">
+                {{ s.is_personal_exhausted ? 'Agotada' : 'Disponible' }}
+              </span>
+            </td>
+            <td class="actions-cell">
+              <div class="inline-edit">
+                <label [attr.for]="'seller-quota-' + s.seller_id" class="sr-only">Cuota de usuario {{ s.seller_name }}</label>
+                <input
+                  [id]="'seller-quota-' + s.seller_id"
+                  type="number"
+                  min="0"
+                  [(ngModel)]="sellerQuotaInputs[s.seller_id]"
+                  class="neu-input input-sm"
+                  [attr.aria-label]="'Cuota asignada para ' + s.seller_name"
+                />
+                <button
+                  (click)="saveSellerQuota(s.seller_id)"
+                  [disabled]="savingSellerQuotaId() === s.seller_id"
+                  class="neu-btn btn-sm neu-btn-bordo"
+                >
+                  <span *ngIf="savingSellerQuotaId() === s.seller_id" class="neu-spinner"></span>
+                  <span>Guardar</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <ng-template #noSellers>
+      <p class="empty-msg">No hay vendedores registrados en el sistema.</p>
     </ng-template>
   </div>
 </section>

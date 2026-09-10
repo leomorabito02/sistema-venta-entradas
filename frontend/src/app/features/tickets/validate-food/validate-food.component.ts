@@ -35,6 +35,7 @@ export class ValidateFoodComponent implements OnDestroy {
 
   errorMessage = signal<string | null>(null);
   successMessage = signal<string | null>(null);
+  justValidated = signal<boolean>(false);
 
   cameraActive = signal(false);
   cameraError = signal<string | null>(null);
@@ -61,12 +62,14 @@ export class ValidateFoodComponent implements OnDestroy {
 
   clearSelection(): void {
     this.selectedTicket.set(null);
+    this.justValidated.set(false);
     this.clearMessages();
   }
 
   searchByCode(): void {
     this.clearMessages();
     this.selectedTicket.set(null);
+    this.justValidated.set(false);
 
     const code = this.fourDigitInput.trim();
     if (code?.length !== 4) {
@@ -99,6 +102,7 @@ export class ValidateFoodComponent implements OnDestroy {
   searchByToken(): void {
     this.clearMessages();
     this.selectedTicket.set(null);
+    this.justValidated.set(false);
 
     const token = this.qrTokenInput.trim();
     if (!token) {
@@ -156,6 +160,7 @@ export class ValidateFoodComponent implements OnDestroy {
 
   selectTicket(t: Ticket): void {
     this.selectedTicket.set(t);
+    this.justValidated.set(false);
     this.clearMessages();
   }
 
@@ -164,12 +169,12 @@ export class ValidateFoodComponent implements OnDestroy {
     if (!ticket) return;
 
     if (ticket.ticketType !== 'CON_COMIDA') {
-      this.errorMessage.set('No se puede entregar comida. El bono no es de tipo CON_COMIDA.');
+      this.errorMessage.set('No se puede entregar. El bono no incluye 1 Choripán.');
       return;
     }
 
     if (ticket.status !== 'USADO_ENTRADA') {
-      this.errorMessage.set(`No se puede entregar comida. El bono debe haber sido validado previamente en entrada (estado actual: ${ticket.status}).`);
+      this.errorMessage.set('No se puede entregar el choripán. El bono debe haber sido validado previamente en entrada.');
       return;
     }
 
@@ -185,8 +190,9 @@ export class ValidateFoodComponent implements OnDestroy {
         this.validating.set(false);
         if (res.success && res.data) {
           const updatedTicket = res.data;
+          this.justValidated.set(true);
           this.selectedTicket.set(updatedTicket);
-          this.successMessage.set('¡Comida entregada correctamente! El estado ha cambiado a USADO_COMIDA.');
+          this.successMessage.set('¡1 Choripán entregado correctamente!');
           this.allTickets.update(list => list.map(t => t.id === updatedTicket.id ? updatedTicket : t));
         } else {
           this.errorMessage.set(res.message || 'Error al validar la entrega de comida.');
@@ -206,7 +212,15 @@ export class ValidateFoodComponent implements OnDestroy {
       return;
     }
 
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } })
+    const constraints: MediaStreamConstraints = {
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      }
+    };
+
+    navigator.mediaDevices.getUserMedia(constraints)
       .then((stream) => {
         this.mediaStream = stream;
         this.cameraActive.set(true);
@@ -227,30 +241,85 @@ export class ValidateFoodComponent implements OnDestroy {
   }
 
   private startQrScanningLoop(): void {
-    const scanTick = () => {
+    let lastScanTime = 0;
+    const SCAN_INTERVAL_MS = 90;
+    const nativeDetector = this.initNativeDetector();
+
+    const scanTick = async () => {
       if (!this.cameraActive() || !this.videoElement?.nativeElement) {
         return;
       }
+
       const video = this.videoElement.nativeElement;
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        this.scanCanvas.width = video.videoWidth;
-        this.scanCanvas.height = video.videoHeight;
-        if (this.scanContext) {
-          this.scanContext.drawImage(video, 0, 0, this.scanCanvas.width, this.scanCanvas.height);
-          const imageData = this.scanContext.getImageData(0, 0, this.scanCanvas.width, this.scanCanvas.height);
-          const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: 'dontInvert'
-          });
-          if (code?.data) {
-            const rawText = code.data.trim();
-            this.handleScannedCode(rawText);
-            return;
-          }
+      const now = performance.now();
+
+      if (video.readyState === video.HAVE_ENOUGH_DATA && (now - lastScanTime >= SCAN_INTERVAL_MS)) {
+        lastScanTime = now;
+
+        const nativeResult = await this.detectWithNativeApi(nativeDetector, video);
+        if (nativeResult) {
+          this.handleScannedCode(nativeResult);
+          return;
+        }
+
+        const jsQrResult = this.detectWithJsQr(video);
+        if (jsQrResult) {
+          this.handleScannedCode(jsQrResult);
+          return;
         }
       }
-      this.scanAnimFrameId = requestAnimationFrame(scanTick);
+
+      if (this.cameraActive()) {
+        this.scanAnimFrameId = requestAnimationFrame(scanTick);
+      }
     };
+
     this.scanAnimFrameId = requestAnimationFrame(scanTick);
+  }
+
+  private initNativeDetector(): any {
+    if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
+      try {
+        return new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  private async detectWithNativeApi(nativeDetector: any, video: HTMLVideoElement): Promise<string | null> {
+    if (!nativeDetector) return null;
+    try {
+      const barcodes = await nativeDetector.detect(video);
+      if (barcodes.length > 0 && barcodes[0]?.rawValue) {
+        return barcodes[0].rawValue.trim();
+      }
+    } catch {
+      // Fallback
+    }
+    return null;
+  }
+
+  private detectWithJsQr(video: HTMLVideoElement): string | null {
+    if (!this.scanContext) return null;
+    const MAX_WIDTH = 640;
+    const scale = Math.min(1, MAX_WIDTH / (video.videoWidth || 640));
+    const canvasWidth = Math.floor((video.videoWidth || 640) * scale);
+    const canvasHeight = Math.floor((video.videoHeight || 480) * scale);
+
+    if (this.scanCanvas.width !== canvasWidth || this.scanCanvas.height !== canvasHeight) {
+      this.scanCanvas.width = canvasWidth;
+      this.scanCanvas.height = canvasHeight;
+    }
+
+    this.scanContext.drawImage(video, 0, 0, canvasWidth, canvasHeight);
+    const imageData = this.scanContext.getImageData(0, 0, canvasWidth, canvasHeight);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'attemptBoth'
+    });
+
+    return code?.data ? code.data.trim() : null;
   }
 
   private handleScannedCode(rawText: string): void {
@@ -290,6 +359,16 @@ export class ValidateFoodComponent implements OnDestroy {
       case 'ANULADO': return 'badge-anulado';
       default: return '';
     }
+  }
+
+  formatStatus(status?: string): string {
+    if (!status) return '';
+    return status.replaceAll('_', ' ');
+  }
+
+  formatType(type?: string): string {
+    if (!type) return '';
+    return type.replaceAll('_', ' ');
   }
 
   ngOnDestroy(): void {

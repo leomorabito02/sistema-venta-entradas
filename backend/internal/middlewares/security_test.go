@@ -76,3 +76,18 @@ func TestValidateAntiCSRF(t *testing.T) {
 		}
 	})
 }
+
+func TestRequestLogger(t *testing.T) {
+	loggerMW := middlewares.RequestLogger(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+	}))
+
+	req := httptest.NewRequest(http.MethodPost, "/api/tickets", nil)
+	rec := httptest.NewRecorder()
+
+	loggerMW.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Errorf("Expected status 201 Created, got %d", rec.Code)
+	}
+}

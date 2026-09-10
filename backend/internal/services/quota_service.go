@@ -14,6 +14,10 @@ type QuotaService interface {
 	SetSellerQuota(ctx context.Context, adminID string, sellerID string, assigned int) error
 	SetAllSellersPersonalQuota(ctx context.Context, adminID string, assigned int) error
 	SetGlobalFreeQuota(ctx context.Context, adminID string, totalFree int) error
+	GetDefaultQuotaConfig(ctx context.Context) (*dto.DefaultQuotaConfigResponse, error)
+	UpdateDefaultQuotaConfig(ctx context.Context, adminID string, defaultQuota int) error
+	GetAdminQuotaOverview(ctx context.Context) (*dto.AdminQuotaOverviewResponse, error)
+	GetExhaustedSellers(ctx context.Context) ([]*models.SellerQuotaDetail, error)
 }
 
 type quotaService struct {
@@ -98,4 +102,71 @@ func (s *quotaService) SetGlobalFreeQuota(ctx context.Context, adminID string, t
 		return models.NewBadRequestError("Total free quota must be non-negative (>= 0)", nil)
 	}
 	return s.quotaRepo.SetGlobalFreeQuota(ctx, adminID, totalFree)
+}
+
+func (s *quotaService) GetDefaultQuotaConfig(ctx context.Context) (*dto.DefaultQuotaConfigResponse, error) {
+	val, err := s.quotaRepo.GetDefaultQuotaConfig(ctx)
+	if err != nil {
+		return nil, models.NewInternalError("Failed to fetch default quota config", err)
+	}
+	return &dto.DefaultQuotaConfigResponse{DefaultPersonalQuota: val}, nil
+}
+
+func (s *quotaService) UpdateDefaultQuotaConfig(ctx context.Context, adminID string, defaultQuota int) error {
+	if defaultQuota < 0 {
+		return models.NewBadRequestError("Default quota must be non-negative (>= 0)", nil)
+	}
+	return s.quotaRepo.SetAllSellersPersonalQuota(ctx, adminID, defaultQuota)
+}
+
+func (s *quotaService) GetAdminQuotaOverview(ctx context.Context) (*dto.AdminQuotaOverviewResponse, error) {
+	defaultQuota, err := s.quotaRepo.GetDefaultQuotaConfig(ctx)
+	if err != nil {
+		return nil, models.NewInternalError("Failed to fetch default quota config", err)
+	}
+
+	freeSummary, err := s.GetGlobalFreeQuotaSummary(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	sellersQuotas, err := s.quotaRepo.GetAllSellersQuotas(ctx)
+	if err != nil {
+		return nil, models.NewInternalError("Failed to fetch sellers quotas", err)
+	}
+
+	freeUsage, err := s.quotaRepo.GetFreeQuotaUsageBySeller(ctx)
+	if err != nil {
+		return nil, models.NewInternalError("Failed to fetch free quota usage", err)
+	}
+
+	exhausted := []*models.SellerQuotaDetail{}
+	for _, sq := range sellersQuotas {
+		if sq.IsPersonalExhausted {
+			exhausted = append(exhausted, sq)
+		}
+	}
+
+	return &dto.AdminQuotaOverviewResponse{
+		DefaultPersonalQuota:   defaultQuota,
+		GlobalFreeQuota:        *freeSummary,
+		SellersQuotas:          sellersQuotas,
+		FreeQuotaUsageBySeller: freeUsage,
+		ExhaustedSellers:       exhausted,
+	}, nil
+}
+
+func (s *quotaService) GetExhaustedSellers(ctx context.Context) ([]*models.SellerQuotaDetail, error) {
+	sellersQuotas, err := s.quotaRepo.GetAllSellersQuotas(ctx)
+	if err != nil {
+		return nil, models.NewInternalError("Failed to fetch sellers quotas", err)
+	}
+
+	exhausted := []*models.SellerQuotaDetail{}
+	for _, sq := range sellersQuotas {
+		if sq.IsPersonalExhausted {
+			exhausted = append(exhausted, sq)
+		}
+	}
+	return exhausted, nil
 }

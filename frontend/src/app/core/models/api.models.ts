@@ -23,6 +23,7 @@ export interface TokenResponse {
 export interface CreateTicketPayload {
   ticket_type: 'SIMPLE' | 'CON_COMIDA';
   sale_source: 'ANTICIPADA' | 'PUERTA';
+  quota_source?: 'PERSONAL' | 'LIBRE';
   first_name: string;
   last_name: string;
   phone: string;
@@ -49,6 +50,10 @@ export interface TicketResponse {
     email?: string;
   };
   created_at?: string;
+  entry_validated_at?: string;
+  entry_validator_name?: string;
+  food_validated_at?: string;
+  food_validator_name?: string;
 }
 
 export interface Ticket {
@@ -66,6 +71,10 @@ export interface Ticket {
   createdAt?: string;
   sellerName?: string;
   buyerName?: string;
+  entryValidatedAt?: string;
+  entryValidatorName?: string;
+  foodValidatedAt?: string;
+  foodValidatorName?: string;
 }
 
 export interface DashboardStats {
@@ -122,6 +131,45 @@ export interface UpdateQuotaRequest {
   sellerId?: string;
 }
 
+export interface SellerQuotaDetail {
+  seller_id: string;
+  seller_name: string;
+  seller_email: string;
+  assigned_quota: number;
+  used_quota: number;
+  remaining_personal: number;
+  used_free_quota: number;
+  is_personal_exhausted: boolean;
+  updated_at?: string;
+}
+
+export interface SellerFreeQuotaUsage {
+  seller_id: string;
+  seller_name: string;
+  seller_email: string;
+  used_free_quota: number;
+}
+
+export interface DefaultQuotaConfigResponse {
+  default_personal_quota: number;
+}
+
+export interface UpdateDefaultQuotaRequest {
+  default_personal_quota: number;
+}
+
+export interface AdminQuotaOverviewResponse {
+  default_personal_quota: number;
+  global_free_quota: {
+    total_free_quota: number;
+    used_free_quota: number;
+    available_quota: number;
+  };
+  sellers_quotas: SellerQuotaDetail[];
+  free_quota_usage_by_seller: SellerFreeQuotaUsage[];
+  exhausted_sellers: SellerQuotaDetail[];
+}
+
 export interface UpdateUserStatusRequest {
   status: 'PENDING' | 'ACTIVE' | 'DISABLED';
 }
@@ -158,4 +206,6 @@ export interface PublicTicket {
   seller_name: string;
   includes_food: boolean;
   created_at: string;
+  entry_validated_at?: string;
+  food_validated_at?: string;
 }

@@ -54,6 +54,10 @@ func SetupRoutes(cfg RouterConfig) http.Handler {
 			mux.Handle("GET /api/quotas/seller/{id}", authMW(http.HandlerFunc(cfg.QuotaController.GetSellerQuota)))
 			mux.Handle("GET /api/quotas/free", authMW(http.HandlerFunc(cfg.QuotaController.GetGlobalFreeQuota)))
 			mux.Handle("PUT /api/quotas", authMW(adminMW(http.HandlerFunc(cfg.QuotaController.UpdateQuota))))
+			mux.Handle("GET /api/admin/quotas/overview", authMW(adminMW(http.HandlerFunc(cfg.QuotaController.GetAdminQuotaOverview))))
+			mux.Handle("GET /api/admin/quotas/config", authMW(adminMW(http.HandlerFunc(cfg.QuotaController.GetDefaultQuotaConfig))))
+			mux.Handle("PUT /api/admin/quotas/config", authMW(adminMW(http.HandlerFunc(cfg.QuotaController.UpdateDefaultQuotaConfig))))
+			mux.Handle("GET /api/admin/quotas/exhausted", authMW(adminMW(http.HandlerFunc(cfg.QuotaController.GetExhaustedSellers))))
 		}
 
 		if cfg.AuthController != nil {
@@ -75,6 +79,7 @@ func SetupRoutes(cfg RouterConfig) http.Handler {
 	handler = middlewares.CORS(allowedOrigins)(handler)
 	handler = middlewares.ValidateAntiCSRF(cfg.JSONView)(handler)
 	handler = middlewares.Recovery(cfg.JSONView)(handler)
+	handler = middlewares.RequestLogger(handler)
 
 	return handler
 }

@@ -48,6 +48,10 @@ func main() {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	}
 
+	// Ensure quota_source in tickets table is NOT NULL and existing NULL values are updated
+	_ = db.Exec(`UPDATE tickets SET quota_source = 'LIBRE' WHERE quota_source IS NULL OR quota_source = '';`).Error
+	_ = db.Exec(`ALTER TABLE tickets ALTER COLUMN quota_source SET NOT NULL;`).Error
+
 	// Create partial unique index on 4-digit codes for active tickets (RNF-06.02)
 	rawIndexSQL := `
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_active_tickets_4digit_code 

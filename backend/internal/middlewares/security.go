@@ -3,10 +3,34 @@ package middlewares
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"backend/internal/models"
 	"backend/internal/views"
 )
+
+type statusResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (w *statusResponseWriter) WriteHeader(code int) {
+	w.statusCode = code
+	w.ResponseWriter.WriteHeader(code)
+}
+
+// RequestLogger logs HTTP method, path, status code, and duration for incoming requests.
+// Purpose: Provide structured console logging for backend request traffic.
+// Params: next (http.Handler).
+// Returns: http.Handler wrapping logging logic.
+func RequestLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		srw := &statusResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+		next.ServeHTTP(srw, r)
+		log.Printf("[HTTP] %s %s %d (%v)", r.Method, r.URL.Path, srw.statusCode, time.Since(start))
+	})
+}
 
 // SecurityHeaders applies OWASP recommended security headers to incoming HTTP requests.
 // Purpose: Protect against common web vulnerabilities like XSS, Clickjacking, and MIME sniffing.
@@ -20,6 +44,7 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("Content-Security-Policy", "default-src 'self'")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin-allow-popups")
 
 		next.ServeHTTP(w, r)
 	})

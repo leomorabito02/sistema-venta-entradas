@@ -17,7 +17,7 @@ export class ToastService {
   readonly toasts = signal<ToastMessage[]>([]);
 
   show(type: ToastType, title: string, message: string, duration = 5000): void {
-    const id = Math.random().toString(36).substring(2, 9);
+    const id = crypto.randomUUID();
     const toast: ToastMessage = { id, type, title, message, duration };
 
     this.toasts.update(current => [...current, toast]);

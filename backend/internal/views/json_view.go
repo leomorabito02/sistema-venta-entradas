@@ -3,6 +3,7 @@ package views
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
 	"backend/internal/models"
@@ -45,6 +46,7 @@ func (v *JSONView) Error(w http.ResponseWriter, statusCode int, message string, 
 	errStr := ""
 	if err != nil {
 		errStr = err.Error()
+		log.Printf("[ERROR] %d %s: %v", statusCode, message, err)
 	}
 
 	v.RenderJSON(w, statusCode, models.Response{

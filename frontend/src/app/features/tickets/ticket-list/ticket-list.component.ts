@@ -151,6 +151,7 @@ export class TicketListComponent implements OnInit {
 
   // Annulment Modal methods
   openAnnulModal(t: Ticket): void {
+    if (t.status !== 'VENDIDO') return;
     this.selectedTicket.set(t);
     this.annulReason.set('');
     this.showAnnulModal.set(true);
@@ -203,5 +204,15 @@ export class TicketListComponent implements OnInit {
       this.copiedPublicUrl.set(true);
       setTimeout(() => this.copiedPublicUrl.set(false), 2500);
     });
+  }
+
+  formatStatus(status?: string): string {
+    if (!status) return '';
+    return status.replace(/_/g, ' ');
+  }
+
+  formatType(type?: string): string {
+    if (!type) return '';
+    return type.replace(/_/g, ' ');
   }
 }

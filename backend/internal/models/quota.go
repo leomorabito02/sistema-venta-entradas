@@ -55,3 +55,22 @@ type DefaultQuotaConfig struct {
 func (DefaultQuotaConfig) TableName() string {
 	return "default_quota_configs"
 }
+
+type SellerQuotaDetail struct {
+	SellerID            string    `json:"seller_id"`
+	SellerName          string    `json:"seller_name"`
+	SellerEmail         string    `json:"seller_email"`
+	AssignedQuota       int       `json:"assigned_quota"`
+	UsedQuota           int       `json:"used_quota"`
+	RemainingPersonal   int       `json:"remaining_personal"`
+	UsedFreeQuota       int       `json:"used_free_quota"`
+	IsPersonalExhausted bool      `json:"is_personal_exhausted"`
+	UpdatedAt           time.Time `json:"updated_at"`
+}
+
+type SellerFreeQuotaUsage struct {
+	SellerID      string `json:"seller_id"`
+	SellerName    string `json:"seller_name"`
+	SellerEmail   string `json:"seller_email"`
+	UsedFreeQuota int    `json:"used_free_quota"`
+}

@@ -13,12 +13,13 @@ var phoneRegex = regexp.MustCompile(`^[0-9+\-\s()]{6,20}$`)
 var fourDigitCodeRegex = regexp.MustCompile(`^[0-9]{4}$`)
 
 type CreateTicketRequest struct {
-	TicketType models.TicketType `json:"ticket_type"`
-	SaleSource models.SaleSource `json:"sale_source"`
-	FirstName  string            `json:"first_name"`
-	LastName   string            `json:"last_name"`
-	Phone      string            `json:"phone"`
-	Email      *string           `json:"email,omitempty"`
+	TicketType  models.TicketType  `json:"ticket_type"`
+	SaleSource  models.SaleSource  `json:"sale_source"`
+	QuotaSource models.QuotaSource `json:"quota_source,omitempty"`
+	FirstName   string             `json:"first_name"`
+	LastName    string             `json:"last_name"`
+	Phone       string             `json:"phone"`
+	Email       *string            `json:"email,omitempty"`
 }
 
 func (r *CreateTicketRequest) Validate() error {
@@ -60,6 +61,14 @@ func (r *CreateTicketRequest) Validate() error {
 		return fmt.Errorf("invalid sale_source: %s (must be ANTICIPADA or PUERTA)", r.SaleSource)
 	}
 
+	if r.QuotaSource != "" {
+		switch r.QuotaSource {
+		case models.QuotaSourcePersonal, models.QuotaSourceLibre:
+		default:
+			return fmt.Errorf("invalid quota_source: %s (must be PERSONAL or LIBRE)", r.QuotaSource)
+		}
+	}
+
 	return nil
 }
 
@@ -98,13 +107,17 @@ type TicketResponse struct {
 	FourDigitCode string              `json:"four_digit_code"`
 	TicketType    models.TicketType   `json:"ticket_type"`
 	SaleSource    models.SaleSource   `json:"sale_source"`
-	QuotaSource   *models.QuotaSource `json:"quota_source,omitempty"`
+	QuotaSource   models.QuotaSource  `json:"quota_source"`
 	PricePaid     float64             `json:"price_paid"`
 	Status        models.TicketStatus `json:"status"`
 	Buyer         *models.Buyer       `json:"buyer,omitempty"`
-	SellerID      string              `json:"seller_id"`
-	Seller        *UserResponse       `json:"seller,omitempty"`
-	CreatedAt     time.Time           `json:"created_at"`
+	SellerID           string              `json:"seller_id"`
+	Seller             *UserResponse       `json:"seller,omitempty"`
+	CreatedAt          time.Time           `json:"created_at"`
+	EntryValidatedAt   *time.Time          `json:"entry_validated_at,omitempty"`
+	EntryValidatorName *string             `json:"entry_validator_name,omitempty"`
+	FoodValidatedAt    *time.Time          `json:"food_validated_at,omitempty"`
+	FoodValidatorName  *string             `json:"food_validator_name,omitempty"`
 }
 
 type TicketPublicResponse struct {
@@ -117,8 +130,10 @@ type TicketPublicResponse struct {
 	PricePaid     float64             `json:"price_paid"`
 	BuyerName     string              `json:"buyer_name"`
 	SellerName    string              `json:"seller_name"`
-	IncludesFood  bool                `json:"includes_food"`
-	CreatedAt     time.Time           `json:"created_at"`
+	IncludesFood     bool                `json:"includes_food"`
+	CreatedAt        time.Time           `json:"created_at"`
+	EntryValidatedAt *time.Time          `json:"entry_validated_at,omitempty"`
+	FoodValidatedAt  *time.Time          `json:"food_validated_at,omitempty"`
 }
 
 type TicketPriceResponse struct {

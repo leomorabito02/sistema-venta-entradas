@@ -39,13 +39,18 @@ type Ticket struct {
 	FourDigitCode string       `gorm:"type:varchar(4);not null;uniqueIndex" json:"four_digit_code"`
 	TicketType    TicketType   `gorm:"type:varchar(20);not null;check:ticket_type IN ('SIMPLE', 'CON_COMIDA')" json:"ticket_type"`
 	SaleSource    SaleSource   `gorm:"type:varchar(20);not null;check:sale_source IN ('ANTICIPADA', 'PUERTA')" json:"sale_source"`
-	QuotaSource   *QuotaSource `gorm:"type:varchar(20);check:quota_source IN ('PERSONAL', 'LIBRE')" json:"quota_source,omitempty"`
+	QuotaSource   QuotaSource  `gorm:"type:varchar(20);not null;check:quota_source IN ('PERSONAL', 'LIBRE')" json:"quota_source"`
 	PricePaid     float64      `gorm:"type:numeric(10,2);not null;check:price_paid >= 0" json:"price_paid"`
 	Status        TicketStatus `gorm:"type:varchar(20);not null;default:'VENDIDO';check:status IN ('VENDIDO', 'USADO_ENTRADA', 'USADO_COMIDA', 'ANULADO')" json:"status"`
 	BuyerID       string       `gorm:"type:uuid;not null;index" json:"buyer_id"`
 	SellerID      string       `gorm:"type:uuid;not null;index" json:"seller_id"`
 	CreatedAt     time.Time    `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt     time.Time    `gorm:"autoUpdateTime" json:"updated_at"`
+
+	EntryValidatedAt   *time.Time `gorm:"-" json:"entry_validated_at,omitempty"`
+	EntryValidatorName *string    `gorm:"-" json:"entry_validator_name,omitempty"`
+	FoodValidatedAt    *time.Time `gorm:"-" json:"food_validated_at,omitempty"`
+	FoodValidatorName  *string    `gorm:"-" json:"food_validator_name,omitempty"`
 
 	Buyer  *Buyer `gorm:"foreignKey:BuyerID" json:"buyer,omitempty"`
 	Seller *User  `gorm:"foreignKey:SellerID" json:"seller,omitempty"`

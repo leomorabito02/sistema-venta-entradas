@@ -59,7 +59,7 @@ export class PublicTicketViewComponent implements OnInit {
     QRCode.toDataURL(code, {
       errorCorrectionLevel: 'H',
       margin: 2,
-      width: 260,
+      width: 340,
       color: {
         dark: '#1a101f',
         light: '#ffffff'

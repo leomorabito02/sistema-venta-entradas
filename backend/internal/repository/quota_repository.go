@@ -12,11 +12,14 @@ import (
 type QuotaRepository interface {
 	GetSellerQuota(ctx context.Context, sellerID string) (*models.SellerQuota, error)
 	GetGlobalFreeQuota(ctx context.Context) (*models.GlobalFreeQuota, error)
-	DeductPresaleQuotaTx(ctx context.Context, tx *sql.Tx, sellerID string) (models.QuotaSource, error)
+	DeductPresaleQuotaTx(ctx context.Context, tx *sql.Tx, sellerID string, preferredSource models.QuotaSource) (models.QuotaSource, error)
 	RestoreQuotaTx(ctx context.Context, tx *sql.Tx, sellerID string, quotaSource models.QuotaSource) error
 	SetSellerQuota(ctx context.Context, adminID string, sellerID string, assigned int) error
 	SetAllSellersPersonalQuota(ctx context.Context, adminID string, assigned int) error
 	SetGlobalFreeQuota(ctx context.Context, adminID string, totalFree int) error
+	GetDefaultQuotaConfig(ctx context.Context) (int, error)
+	GetAllSellersQuotas(ctx context.Context) ([]*models.SellerQuotaDetail, error)
+	GetFreeQuotaUsageBySeller(ctx context.Context) ([]*models.SellerFreeQuotaUsage, error)
 }
 
 type postgresQuotaRepository struct {
@@ -29,7 +32,7 @@ func NewQuotaRepository(db *sql.DB) QuotaRepository {
 
 func (r *postgresQuotaRepository) GetSellerQuota(ctx context.Context, sellerID string) (*models.SellerQuota, error) {
 	query := `
-		SELECT seller_id, assigned_quota, used_quota, used_free_quota, updated_at
+		SELECT seller_id, assigned_quota, used_quota, used_free_quota, COALESCE(updated_at, NOW())
 		FROM seller_quotas WHERE seller_id = $1
 	`
 	q := &models.SellerQuota{}
@@ -45,7 +48,7 @@ func (r *postgresQuotaRepository) GetSellerQuota(ctx context.Context, sellerID s
 
 func (r *postgresQuotaRepository) GetGlobalFreeQuota(ctx context.Context) (*models.GlobalFreeQuota, error) {
 	query := `
-		SELECT id, total_free_quota, used_free_quota, updated_at
+		SELECT id, total_free_quota, used_free_quota, COALESCE(updated_at, NOW())
 		FROM global_free_quotas WHERE id = 1
 	`
 	q := &models.GlobalFreeQuota{}
@@ -58,8 +61,24 @@ func (r *postgresQuotaRepository) GetGlobalFreeQuota(ctx context.Context) (*mode
 }
 
 // DeductPresaleQuotaTx atomically checks and deducts presale quota inside an open transaction with FOR UPDATE locks (RNF-04.05, RNF-04.06, RNF-15.03).
-func (r *postgresQuotaRepository) DeductPresaleQuotaTx(ctx context.Context, tx *sql.Tx, sellerID string) (models.QuotaSource, error) {
-	// 1. Lock and fetch seller's quota row
+func (r *postgresQuotaRepository) DeductPresaleQuotaTx(ctx context.Context, tx *sql.Tx, sellerID string, preferredSource models.QuotaSource) (models.QuotaSource, error) {
+	if preferredSource == models.QuotaSourceLibre {
+		return r.deductGlobalFreeQuotaTx(ctx, tx, sellerID)
+	}
+
+	if preferredSource == models.QuotaSourcePersonal {
+		return r.deductPersonalQuotaTx(ctx, tx, sellerID)
+	}
+
+	// Automatic fallback: try personal quota first, then global free quota
+	qs, err := r.deductPersonalQuotaTx(ctx, tx, sellerID)
+	if err == nil {
+		return qs, nil
+	}
+	return r.deductGlobalFreeQuotaTx(ctx, tx, sellerID)
+}
+
+func (r *postgresQuotaRepository) deductPersonalQuotaTx(ctx context.Context, tx *sql.Tx, sellerID string) (models.QuotaSource, error) {
 	var assignedQuota, usedQuota int
 	err := tx.QueryRowContext(ctx, `
 		SELECT assigned_quota, used_quota
@@ -67,11 +86,8 @@ func (r *postgresQuotaRepository) DeductPresaleQuotaTx(ctx context.Context, tx *
 	`, sellerID).Scan(&assignedQuota, &usedQuota)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		// Fetch configured default personal quota
 		var defaultQuota int
 		_ = tx.QueryRowContext(ctx, `SELECT default_personal_quota FROM default_quota_configs WHERE id = 1`).Scan(&defaultQuota)
-
-		// Ensure a seller_quotas row exists with default assigned quota
 		_, err = tx.ExecContext(ctx, `INSERT INTO seller_quotas (seller_id, assigned_quota, used_quota, used_free_quota) VALUES ($1, $2, 0, 0)`, sellerID, defaultQuota)
 		if err != nil {
 			return "", fmt.Errorf("failed to init seller quota: %w", err)
@@ -81,7 +97,6 @@ func (r *postgresQuotaRepository) DeductPresaleQuotaTx(ctx context.Context, tx *
 		return "", fmt.Errorf("failed to lock seller quota: %w", err)
 	}
 
-	// Check personal quota availability
 	if usedQuota < assignedQuota {
 		_, err = tx.ExecContext(ctx, `
 			UPDATE seller_quotas SET used_quota = used_quota + 1, updated_at = NOW() WHERE seller_id = $1
@@ -92,9 +107,12 @@ func (r *postgresQuotaRepository) DeductPresaleQuotaTx(ctx context.Context, tx *
 		return models.QuotaSourcePersonal, nil
 	}
 
-	// 2. Personal quota exhausted; lock and check global free quota pool
+	return "", fmt.Errorf("cuota personal agotada")
+}
+
+func (r *postgresQuotaRepository) deductGlobalFreeQuotaTx(ctx context.Context, tx *sql.Tx, sellerID string) (models.QuotaSource, error) {
 	var totalFree, usedFree int
-	err = tx.QueryRowContext(ctx, `
+	err := tx.QueryRowContext(ctx, `
 		SELECT total_free_quota, used_free_quota
 		FROM global_free_quotas WHERE id = 1 FOR UPDATE
 	`).Scan(&totalFree, &usedFree)
@@ -110,14 +128,12 @@ func (r *postgresQuotaRepository) DeductPresaleQuotaTx(ctx context.Context, tx *
 	}
 
 	if usedFree < totalFree {
-		// Increment global used free quota
 		_, err = tx.ExecContext(ctx, `
 			UPDATE global_free_quotas SET used_free_quota = used_free_quota + 1, updated_at = NOW() WHERE id = 1
 		`)
 		if err != nil {
 			return "", fmt.Errorf("failed to deduct global free quota: %w", err)
 		}
-		// Increment seller's used_free_quota counter
 		_, err = tx.ExecContext(ctx, `
 			UPDATE seller_quotas SET used_free_quota = used_free_quota + 1, updated_at = NOW() WHERE seller_id = $1
 		`, sellerID)
@@ -127,7 +143,7 @@ func (r *postgresQuotaRepository) DeductPresaleQuotaTx(ctx context.Context, tx *
 		return models.QuotaSourceLibre, nil
 	}
 
-	return "", fmt.Errorf("quota exhausted: no personal or free presale tickets available")
+	return "", fmt.Errorf("bolsón de cuota libre global agotado")
 }
 
 // RestoreQuotaTx restores a presale quota unit upon ticket annulment (RNF-14.07, RF-27.08).
@@ -207,10 +223,10 @@ func (r *postgresQuotaRepository) SetAllSellersPersonalQuota(ctx context.Context
 		return fmt.Errorf("failed to update default personal quota config: %w", err)
 	}
 
-	// 2. Ensure all existing sellers in users table have a row in seller_quotas updated to assigned
+	// 2. Ensure all existing sellers/admins in users table have a row in seller_quotas updated to assigned
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO seller_quotas (seller_id, assigned_quota, used_quota, used_free_quota, updated_at)
-		SELECT id, $1, 0, 0, NOW() FROM users WHERE role = 'SELLER'
+		SELECT id, $1, 0, 0, NOW() FROM users WHERE role IN ('SELLER', 'ADMIN')
 		ON CONFLICT (seller_id) DO UPDATE SET assigned_quota = EXCLUDED.assigned_quota, updated_at = NOW()
 	`, assigned)
 	if err != nil {
@@ -263,4 +279,75 @@ func (r *postgresQuotaRepository) SetGlobalFreeQuota(ctx context.Context, adminI
 	}
 
 	return tx.Commit()
+}
+
+func (r *postgresQuotaRepository) GetDefaultQuotaConfig(ctx context.Context) (int, error) {
+	var defaultQuota int
+	err := r.db.QueryRowContext(ctx, `SELECT default_personal_quota FROM default_quota_configs WHERE id = 1`).Scan(&defaultQuota)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
+	return defaultQuota, err
+}
+
+func (r *postgresQuotaRepository) GetAllSellersQuotas(ctx context.Context) ([]*models.SellerQuotaDetail, error) {
+	query := `
+		SELECT u.id, u.name, u.email,
+		       COALESCE(sq.assigned_quota, (SELECT default_personal_quota FROM default_quota_configs WHERE id = 1), 0),
+		       COALESCE(sq.used_quota, 0),
+		       COALESCE(sq.used_free_quota, 0),
+		       COALESCE(sq.updated_at, u.created_at)
+		FROM users u
+		LEFT JOIN seller_quotas sq ON u.id = sq.seller_id
+		WHERE u.role IN ('SELLER', 'ADMIN')
+		ORDER BY u.name ASC
+	`
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	list := []*models.SellerQuotaDetail{}
+	for rows.Next() {
+		sq := &models.SellerQuotaDetail{}
+		var defaultOrAssigned int
+		err := rows.Scan(&sq.SellerID, &sq.SellerName, &sq.SellerEmail, &defaultOrAssigned, &sq.UsedQuota, &sq.UsedFreeQuota, &sq.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		sq.AssignedQuota = defaultOrAssigned
+		sq.RemainingPersonal = sq.AssignedQuota - sq.UsedQuota
+		if sq.RemainingPersonal < 0 {
+			sq.RemainingPersonal = 0
+		}
+		sq.IsPersonalExhausted = sq.RemainingPersonal == 0
+		list = append(list, sq)
+	}
+	return list, rows.Err()
+}
+
+func (r *postgresQuotaRepository) GetFreeQuotaUsageBySeller(ctx context.Context) ([]*models.SellerFreeQuotaUsage, error) {
+	query := `
+		SELECT u.id, u.name, u.email, sq.used_free_quota
+		FROM seller_quotas sq
+		JOIN users u ON sq.seller_id = u.id
+		WHERE sq.used_free_quota > 0
+		ORDER BY sq.used_free_quota DESC
+	`
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	list := []*models.SellerFreeQuotaUsage{}
+	for rows.Next() {
+		item := &models.SellerFreeQuotaUsage{}
+		if err := rows.Scan(&item.SellerID, &item.SellerName, &item.SellerEmail, &item.UsedFreeQuota); err != nil {
+			return nil, err
+		}
+		list = append(list, item)
+	}
+	return list, rows.Err()
 }

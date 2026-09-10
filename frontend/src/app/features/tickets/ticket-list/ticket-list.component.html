@@ -166,7 +166,7 @@
               [class.badge-simple]="t.ticketType === 'SIMPLE'"
               [class.badge-comida]="t.ticketType === 'CON_COMIDA'"
             >
-              {{ t.ticketType === 'CON_COMIDA' ? 'CON COMIDA' : 'SIMPLE' }}
+              {{ formatType(t.ticketType) }}
             </span>
           </td>
           <td>
@@ -191,7 +191,7 @@
                 'neu-badge-anulado': t.status === 'ANULADO'
               }"
             >
-              {{ t.status }}
+              {{ formatStatus(t.status) }}
             </span>
           </td>
           <td>
@@ -200,7 +200,7 @@
                 <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Ver
               </button>
               <button
-                *ngIf="t.status !== 'ANULADO'"
+                *ngIf="t.status === 'VENDIDO'"
                 class="neu-btn btn-annul"
                 (click)="openAnnulModal(t)"
                 title="Anular bono y devolver cupo de cuota"
@@ -242,7 +242,7 @@
               'neu-badge-anulado': selectedTicket()?.status === 'ANULADO'
             }"
           >
-            {{ selectedTicket()?.status }}
+            {{ formatStatus(selectedTicket()?.status) }}
           </span>
         </div>
       </div>
@@ -259,7 +259,7 @@
         </div>
         <div class="detail-group">
           <span class="detail-label">Tipo de Bono:</span>
-          <span>{{ selectedTicket()?.ticketType === 'CON_COMIDA' ? 'CON COMIDA' : 'SIMPLE' }}</span>
+          <span>{{ formatType(selectedTicket()?.ticketType) }}</span>
         </div>
         <div class="detail-group">
           <span class="detail-label">Canal de Venta:</span>
@@ -274,6 +274,20 @@
         <div class="detail-group">
           <span class="detail-label">Monto Pagado:</span>
           <strong class="text-success">${{ selectedTicket()?.pricePaid | number:'1.2-2' }}</strong>
+        </div>
+        <div class="detail-group" *ngIf="selectedTicket()?.entryValidatedAt">
+          <span class="detail-label">Entrada Validada:</span>
+          <strong>
+            {{ selectedTicket()?.entryValidatedAt | date:'dd/MM/yyyy HH:mm' }} hs
+            <span *ngIf="selectedTicket()?.entryValidatorName"> por {{ selectedTicket()?.entryValidatorName }}</span>
+          </strong>
+        </div>
+        <div class="detail-group" *ngIf="selectedTicket()?.foodValidatedAt">
+          <span class="detail-label">Choripán Entregado:</span>
+          <strong>
+            {{ selectedTicket()?.foodValidatedAt | date:'dd/MM/yyyy HH:mm' }} hs
+            <span *ngIf="selectedTicket()?.foodValidatorName"> por {{ selectedTicket()?.foodValidatorName }}</span>
+          </strong>
         </div>
       </div>
 
@@ -291,7 +305,7 @@
 
     <div class="modal-footer">
       <button
-        *ngIf="selectedTicket()?.status !== 'ANULADO'"
+        *ngIf="selectedTicket()?.status === 'VENDIDO'"
         class="neu-btn btn-annul"
         (click)="openAnnulModal(selectedTicket()!)"
       >

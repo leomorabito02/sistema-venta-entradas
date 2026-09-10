@@ -40,3 +40,26 @@ type GlobalFreeQuotaResponse struct {
 	UsedFreeQuota  int `json:"used_free_quota"`
 	AvailableQuota int `json:"available_quota"`
 }
+
+type DefaultQuotaConfigResponse struct {
+	DefaultPersonalQuota int `json:"default_personal_quota"`
+}
+
+type UpdateDefaultQuotaRequest struct {
+	DefaultPersonalQuota int `json:"default_personal_quota"`
+}
+
+func (r *UpdateDefaultQuotaRequest) Validate() error {
+	if r.DefaultPersonalQuota < 0 {
+		return fmt.Errorf("default_personal_quota must be non-negative (>= 0)")
+	}
+	return nil
+}
+
+type AdminQuotaOverviewResponse struct {
+	DefaultPersonalQuota   int                             `json:"default_personal_quota"`
+	GlobalFreeQuota        GlobalFreeQuotaResponse         `json:"global_free_quota"`
+	SellersQuotas          []*models.SellerQuotaDetail     `json:"sellers_quotas"`
+	FreeQuotaUsageBySeller []*models.SellerFreeQuotaUsage  `json:"free_quota_usage_by_seller"`
+	ExhaustedSellers       []*models.SellerQuotaDetail     `json:"exhausted_sellers"`
+}

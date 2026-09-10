@@ -93,13 +93,9 @@ func (s *ticketService) CreateTicket(ctx context.Context, sellerID string, req *
 		return nil, models.NewInternalError("Failed to create buyer record", err)
 	}
 
-	var quotaSource *models.QuotaSource
-	if req.SaleSource == models.SaleSourceAnticipada {
-		qs, err := s.quotaRepo.DeductPresaleQuotaTx(ctx, tx, sellerID)
-		if err != nil {
-			return nil, models.NewConflictError("Presale ticket quota exhausted", err)
-		}
-		quotaSource = &qs
+	quotaSource, err := s.resolveQuotaSourceTx(ctx, tx, sellerID, req.SaleSource, req.QuotaSource)
+	if err != nil {
+		return nil, err
 	}
 
 	ticket := &models.Ticket{
@@ -152,8 +148,10 @@ func (s *ticketService) GetPublicTicket(ctx context.Context, token string) (*dto
 		PricePaid:     ticket.PricePaid,
 		BuyerName:     buyerName,
 		SellerName:    ticket.Seller.Name,
-		IncludesFood:  includesFood,
-		CreatedAt:     ticket.CreatedAt,
+		IncludesFood:     includesFood,
+		CreatedAt:        ticket.CreatedAt,
+		EntryValidatedAt: ticket.EntryValidatedAt,
+		FoodValidatedAt:  ticket.FoodValidatedAt,
 	}, nil
 }
 
@@ -203,6 +201,21 @@ func (s *ticketService) ValidateTicket(ctx context.Context, operatorID string, r
 	}
 
 	ticket.Status = nextStatus
+	if req.ValidationType == models.ValidationTypeEntrada {
+		now := validation.ValidatedAt
+		ticket.EntryValidatedAt = &now
+		if op, err := s.userRepo.GetByID(ctx, operatorID); err == nil && op != nil {
+			opName := op.Name
+			ticket.EntryValidatorName = &opName
+		}
+	} else if req.ValidationType == models.ValidationTypeComida {
+		now := validation.ValidatedAt
+		ticket.FoodValidatedAt = &now
+		if op, err := s.userRepo.GetByID(ctx, operatorID); err == nil && op != nil {
+			opName := op.Name
+			ticket.FoodValidatorName = &opName
+		}
+	}
 	return s.toTicketResponse(ticket), nil
 }
 
@@ -258,8 +271,8 @@ func (s *ticketService) AnnulTicket(ctx context.Context, operatorID string, tick
 		return models.NewNotFoundError("Ticket not found", err)
 	}
 
-	if ticket.Status == models.TicketStatusAnulado {
-		return models.NewConflictError("Ticket is already annulled", nil)
+	if ticket.Status != models.TicketStatusVendido {
+		return models.NewConflictError("Only tickets with VENDIDO status can be annulled", nil)
 	}
 
 	prevStatus := ticket.Status
@@ -269,8 +282,8 @@ func (s *ticketService) AnnulTicket(ctx context.Context, operatorID string, tick
 		return models.NewInternalError("Failed to update ticket status to ANULADO", err)
 	}
 
-	if ticket.SaleSource == models.SaleSourceAnticipada && prevStatus != models.TicketStatusAnulado && ticket.QuotaSource != nil {
-		if err := s.quotaRepo.RestoreQuotaTx(ctx, tx, ticket.SellerID, *ticket.QuotaSource); err != nil {
+	if ticket.SaleSource == models.SaleSourceAnticipada && prevStatus != models.TicketStatusAnulado {
+		if err := s.quotaRepo.RestoreQuotaTx(ctx, tx, ticket.SellerID, ticket.QuotaSource); err != nil {
 			return models.NewInternalError("Failed to restore ticket quota", err)
 		}
 	}
@@ -305,9 +318,13 @@ func (s *ticketService) toTicketResponse(t *models.Ticket) *dto.TicketResponse {
 		QuotaSource:   t.QuotaSource,
 		PricePaid:     t.PricePaid,
 		Status:        t.Status,
-		Buyer:         t.Buyer,
-		SellerID:      t.SellerID,
-		CreatedAt:     t.CreatedAt,
+		Buyer:              t.Buyer,
+		SellerID:           t.SellerID,
+		CreatedAt:          t.CreatedAt,
+		EntryValidatedAt:   t.EntryValidatedAt,
+		EntryValidatorName: t.EntryValidatorName,
+		FoodValidatedAt:    t.FoodValidatedAt,
+		FoodValidatorName:  t.FoodValidatorName,
 	}
 	if t.Seller != nil {
 		res.Seller = &dto.UserResponse{
@@ -403,5 +420,16 @@ func (s *ticketService) ListTickets(ctx context.Context, sellerID string) ([]*dt
 		response = append(response, s.toTicketResponse(t))
 	}
 	return response, nil
+}
+
+func (s *ticketService) resolveQuotaSourceTx(ctx context.Context, tx *sql.Tx, sellerID string, saleSource models.SaleSource, preferredQuotaSource models.QuotaSource) (models.QuotaSource, error) {
+	if saleSource == models.SaleSourceAnticipada {
+		qs, err := s.quotaRepo.DeductPresaleQuotaTx(ctx, tx, sellerID, preferredQuotaSource)
+		if err != nil {
+			return "", models.NewConflictError("Presale ticket quota exhausted: "+err.Error(), err)
+		}
+		return qs, nil
+	}
+	return models.QuotaSourceLibre, nil
 }
 
