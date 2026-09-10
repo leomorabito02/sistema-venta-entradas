@@ -38,7 +38,7 @@ export class AuthService {
       { withCredentials: true }
     ).pipe(
       tap((res) => {
-        if (res.success && res.data) {
+        if (res.success && res.data?.access_token && res.data?.user) {
           this.setSession(res.data.access_token, res.data.user);
         }
       })
@@ -56,7 +56,7 @@ export class AuthService {
       { withCredentials: true }
     ).pipe(
       tap((res) => {
-        if (res.success && res.data) {
+        if (res.success && res.data?.access_token && res.data?.user) {
           this.setSession(res.data.access_token, res.data.user);
         } else {
           this.clearSession(false);
@@ -82,7 +82,7 @@ export class AuthService {
   handle401Error(req: HttpRequest<unknown>, next: HttpHandlerFn): Observable<HttpEvent<unknown>> {
     return this.refreshToken().pipe(
       switchMap((res) => {
-        if (res.success && res.data) {
+        if (res.success && res.data?.access_token) {
           return next(this.addTokenHeader(req, res.data.access_token));
         }
         this.clearSession(true);

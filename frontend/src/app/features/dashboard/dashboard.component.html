@@ -144,22 +144,28 @@
 
         <!-- Breakdown by Sale Source (Anticipada vs Puerta) -->
         <div class="breakdown-card">
-          <h4>Origen de Venta</h4>
+          <h4>Proporción Canales de Venta</h4>
 
           <div class="metric-row">
-            <span class="metric-title">ANTICIPADA</span>
-            <span class="metric-val">{{ stats().anticipadaCount }} emitidos (${{ stats().anticipadaRevenue | number:'1.2-2' }})</span>
+            <span class="metric-title">ANTICIPADA (Preventa)</span>
+            <span class="metric-val"><strong>{{ stats().anticipadaCount }}</strong> ({{ stats().anticipadaVolumePct | number:'1.1-1' }}% vol)</span>
+          </div>
+          <div class="metric-subrow">
+            Recaudación: ${{ stats().anticipadaRevenue | number:'1.2-2' }} ({{ stats().anticipadaRevenuePct | number:'1.1-1' }}% rec)
           </div>
           <div class="progress-bar">
-            <div class="progress-fill anticipada" [style.width.%]="stats().totalIssued ? (stats().anticipadaCount / stats().totalIssued) * 100 : 0"></div>
+            <div class="progress-fill anticipada" [style.width.%]="stats().anticipadaVolumePct"></div>
           </div>
 
           <div class="metric-row">
-            <span class="metric-title">PUERTA</span>
-            <span class="metric-val">{{ stats().puertaCount }} emitidos (${{ stats().puertaRevenue | number:'1.2-2' }})</span>
+            <span class="metric-title">PUERTA (Boletería)</span>
+            <span class="metric-val"><strong>{{ stats().puertaCount }}</strong> ({{ stats().puertaVolumePct | number:'1.1-1' }}% vol)</span>
+          </div>
+          <div class="metric-subrow">
+            Recaudación: ${{ stats().puertaRevenue | number:'1.2-2' }} ({{ stats().puertaRevenuePct | number:'1.1-1' }}% rec)
           </div>
           <div class="progress-bar">
-            <div class="progress-fill puerta" [style.width.%]="stats().totalIssued ? (stats().puertaCount / stats().totalIssued) * 100 : 0"></div>
+            <div class="progress-fill puerta" [style.width.%]="stats().puertaVolumePct"></div>
           </div>
         </div>
 
@@ -181,7 +187,61 @@
             <span>Bonos Anulados:</span>
             <strong class="text-danger">{{ stats().annulledCount }} (${{ stats().annulledRevenue | number:'1.2-2' }})</strong>
           </div>
+
+          <div class="status-summary-item">
+            <span>Ticket Promedio Global:</span>
+            <strong class="text-success">${{ stats().averageTicketPrice | number:'1.2-2' }}</strong>
+          </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Seller Ranking Section (Clasificación de Vendedores) -->
+    <div class="neu-card full-width">
+      <div class="card-header-row">
+        <div>
+          <h3>Clasificación y Ranking de Vendedores</h3>
+          <p class="subtitle">Desglose por volumen emitido, recaudación acumulada y ticket promedio por bono</p>
+        </div>
+      </div>
+
+      <div *ngIf="sellerRanking().length === 0" class="empty-msg">
+        No hay datos de vendedores registrados.
+      </div>
+
+      <div *ngIf="sellerRanking().length > 0" class="table-responsive">
+        <table class="tickets-table">
+          <thead>
+            <tr>
+              <th># Pos.</th>
+              <th>Vendedor</th>
+              <th>Volumen Emitido</th>
+              <th>Recaudación Total</th>
+              <th>Ticket Promedio</th>
+              <th>Origen Ventas</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let s of sellerRanking(); let i = index">
+              <td>
+                <span class="rank-badge" [class.top1]="i === 0" [class.top2]="i === 1" [class.top3]="i === 2">
+                  #{{ i + 1 }}
+                </span>
+              </td>
+              <td>
+                <strong>{{ s.sellerName }}</strong>
+                <div *ngIf="s.sellerEmail" class="seller-email-sub">{{ s.sellerEmail }}</div>
+              </td>
+              <td><strong>{{ s.totalIssued }}</strong> bonos</td>
+              <td><strong class="text-success">${{ s.totalRevenue | number:'1.2-2' }}</strong></td>
+              <td>${{ s.averageTicket | number:'1.2-2' }}</td>
+              <td>
+                <span class="badge badge-source">Ant. {{ s.anticipadaCount }}</span>
+                <span class="badge badge-simple ms-1" *ngIf="s.puertaCount > 0">Pta. {{ s.puertaCount }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 

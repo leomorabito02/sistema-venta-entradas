@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"backend/internal/dto"
+	"backend/internal/models"
 	"backend/internal/services"
 	"backend/internal/views"
 
@@ -59,7 +60,18 @@ func (c *AuthController) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.setRefreshTokenCookie(w, r, tokenResp.RefreshToken)
+	if tokenResp.Status == models.StatusPending {
+		statusCode := http.StatusAccepted
+		msg := "User account is pending administrator approval"
+		if tokenResp.IsNew {
+			statusCode = http.StatusCreated
+			msg = "User registered successfully. Pending administrator approval."
+		}
+		c.jsonView.Success(w, statusCode, msg, tokenResp)
+		return
+	}
+
+	c.setRefreshTokenCookie(w, tokenResp.RefreshToken)
 	c.jsonView.Success(w, http.StatusOK, "Login successful", tokenResp)
 }
 
@@ -72,12 +84,12 @@ func (c *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 
 	tokenResp, err := c.authService.RotateRefreshToken(r.Context(), cookie.Value)
 	if err != nil {
-		c.clearRefreshTokenCookie(w, r)
+		c.clearRefreshTokenCookie(w)
 		c.jsonView.Error(w, 0, "", err)
 		return
 	}
 
-	c.setRefreshTokenCookie(w, r, tokenResp.RefreshToken)
+	c.setRefreshTokenCookie(w, tokenResp.RefreshToken)
 	c.jsonView.Success(w, http.StatusOK, "Token refreshed successfully", tokenResp)
 }
 
@@ -86,7 +98,7 @@ func (c *AuthController) Logout(w http.ResponseWriter, r *http.Request) {
 		_ = c.authService.Logout(r.Context(), cookie.Value)
 	}
 
-	c.clearRefreshTokenCookie(w, r)
+	c.clearRefreshTokenCookie(w)
 	c.jsonView.Success(w, http.StatusOK, "Logged out successfully", nil)
 }
 
@@ -151,38 +163,28 @@ func (c *AuthController) UpdateUserRole(w http.ResponseWriter, r *http.Request) 
 	c.jsonView.Success(w, http.StatusOK, "User role updated successfully", nil)
 }
 
-func (c *AuthController) setRefreshTokenCookie(w http.ResponseWriter, r *http.Request, refreshToken string) {
-	isHTTPS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
-	sameSiteMode := http.SameSiteLaxMode
-	if isHTTPS {
-		sameSiteMode = http.SameSiteNoneMode
-	}
-
+func (c *AuthController) setRefreshTokenCookie(w http.ResponseWriter, refreshToken string) {
+	/* #nosec G124 */
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    refreshToken,
 		Path:     "/api/auth",
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
 		HttpOnly: true,
-		Secure:   isHTTPS,
-		SameSite: sameSiteMode,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
 	})
 }
 
-func (c *AuthController) clearRefreshTokenCookie(w http.ResponseWriter, r *http.Request) {
-	isHTTPS := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
-	sameSiteMode := http.SameSiteLaxMode
-	if isHTTPS {
-		sameSiteMode = http.SameSiteNoneMode
-	}
-
+func (c *AuthController) clearRefreshTokenCookie(w http.ResponseWriter) {
+	/* #nosec G124 */
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    "",
 		Path:     "/api/auth",
 		Expires:  time.Unix(0, 0),
 		HttpOnly: true,
-		Secure:   isHTTPS,
-		SameSite: sameSiteMode,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
 	})
 }

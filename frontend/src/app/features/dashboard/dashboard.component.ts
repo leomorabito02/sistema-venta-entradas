@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
-import { Ticket, User, DashboardStats } from '../../core/models/api.models';
+import { Ticket, User, DashboardStats, SellerRankingItem } from '../../core/models/api.models';
 
 @Component({
   selector: 'app-dashboard',
@@ -36,86 +36,173 @@ export class DashboardComponent implements OnInit {
     return list.filter(t => t.sellerId === sellerFilter);
   });
 
-  readonly stats = computed<DashboardStats>(() => {
-    const list = this.filteredTickets();
+  readonly sellerRanking = computed<SellerRankingItem[]>(() => {
+    const list = this.tickets();
+    const usersList = this.users();
+    const map = new Map<string, SellerRankingItem>();
 
-    let totalRevenue = 0;
-    let totalIssued = 0;
-    let ticketsSimpleCount = 0;
-    let ticketsSimpleRevenue = 0;
-    let ticketsConComidaCount = 0;
-    let ticketsConComidaRevenue = 0;
-    let anticipadaCount = 0;
-    let anticipadaRevenue = 0;
-    let puertaCount = 0;
-    let puertaRevenue = 0;
-    let entriesUsedCount = 0;
-    let foodDeliveredCount = 0;
-    let foodPendingCount = 0;
-    let annulledCount = 0;
-    let annulledRevenue = 0;
+    for (const u of usersList) {
+      map.set(u.id, {
+        sellerId: u.id,
+        sellerName: u.name,
+        sellerEmail: u.email,
+        totalIssued: 0,
+        totalRevenue: 0,
+        averageTicket: 0,
+        anticipadaCount: 0,
+        puertaCount: 0
+      });
+    }
 
     for (const t of list) {
-      if (t.status === 'ANULADO') {
-        annulledCount++;
-        annulledRevenue += t.pricePaid || 0;
-        continue;
+      if (t.status === 'ANULADO') continue;
+
+      let item = map.get(t.sellerId);
+      if (!item) {
+        item = {
+          sellerId: t.sellerId,
+          sellerName: t.sellerName || 'Vendedor Desconocido',
+          sellerEmail: '',
+          totalIssued: 0,
+          totalRevenue: 0,
+          averageTicket: 0,
+          anticipadaCount: 0,
+          puertaCount: 0
+        };
+        map.set(t.sellerId, item);
       }
 
-      totalIssued++;
-      totalRevenue += t.pricePaid || 0;
-
-      // Breakdown by Ticket Type
-      if (t.ticketType === 'SIMPLE') {
-        ticketsSimpleCount++;
-        ticketsSimpleRevenue += t.pricePaid || 0;
-      } else if (t.ticketType === 'CON_COMIDA') {
-        ticketsConComidaCount++;
-        ticketsConComidaRevenue += t.pricePaid || 0;
-      }
-
-      // Breakdown by Sale Source (ANTICIPADA vs PUERTA)
+      item.totalIssued++;
+      item.totalRevenue += (t.pricePaid || 0);
       if (t.saleSource === 'ANTICIPADA') {
-        anticipadaCount++;
-        anticipadaRevenue += t.pricePaid || 0;
+        item.anticipadaCount++;
       } else if (t.saleSource === 'PUERTA') {
-        puertaCount++;
-        puertaRevenue += t.pricePaid || 0;
-      }
-
-      // Usage / Food status
-      if (t.status === 'USADO_ENTRADA') {
-        entriesUsedCount++;
-        if (t.ticketType === 'CON_COMIDA') {
-          foodPendingCount++;
-        }
-      } else if (t.status === 'USADO_COMIDA') {
-        entriesUsedCount++;
-        foodDeliveredCount++;
-      } else if (t.status === 'VENDIDO' && t.ticketType === 'CON_COMIDA') {
-        foodPendingCount++;
+        item.puertaCount++;
       }
     }
+
+    const result: SellerRankingItem[] = [];
+    map.forEach(item => {
+      if (item.totalIssued > 0) {
+        item.averageTicket = item.totalRevenue / item.totalIssued;
+        result.push(item);
+      }
+    });
+
+    return result.sort((a, b) => b.totalRevenue - a.totalRevenue || b.totalIssued - a.totalIssued);
+  });
+
+  readonly stats = computed<DashboardStats>(() => {
+    return this.calculateDashboardStats(this.filteredTickets());
+  });
+
+  private calculateDashboardStats(list: Ticket[]): DashboardStats {
+    const acc = {
+      totalRevenue: 0,
+      totalIssued: 0,
+      ticketsSimpleCount: 0,
+      ticketsSimpleRevenue: 0,
+      ticketsConComidaCount: 0,
+      ticketsConComidaRevenue: 0,
+      anticipadaCount: 0,
+      anticipadaRevenue: 0,
+      puertaCount: 0,
+      puertaRevenue: 0,
+      entriesUsedCount: 0,
+      foodDeliveredCount: 0,
+      foodPendingCount: 0,
+      annulledCount: 0,
+      annulledRevenue: 0,
+    };
+
+    for (const t of list) {
+      this.processSingleTicket(t, acc);
+    }
+
+    return this.buildDashboardStatsResult(acc, list.slice(0, 10));
+  }
+
+  private processSingleTicket(t: Ticket, acc: Record<string, number>): void {
+    const price = t.pricePaid || 0;
+    if (t.status === 'ANULADO') {
+      acc['annulledCount']++;
+      acc['annulledRevenue'] += price;
+      return;
+    }
+
+    acc['totalIssued']++;
+    acc['totalRevenue'] += price;
+
+    this.accumulateTicketType(t.ticketType, price, acc);
+    this.accumulateSaleSource(t.saleSource, price, acc);
+    this.accumulateTicketStatus(t.status, t.ticketType, acc);
+  }
+
+  private accumulateTicketType(ticketType: string, price: number, acc: Record<string, number>): void {
+    if (ticketType === 'SIMPLE') {
+      acc['ticketsSimpleCount']++;
+      acc['ticketsSimpleRevenue'] += price;
+    } else if (ticketType === 'CON_COMIDA') {
+      acc['ticketsConComidaCount']++;
+      acc['ticketsConComidaRevenue'] += price;
+    }
+  }
+
+  private accumulateSaleSource(saleSource: string, price: number, acc: Record<string, number>): void {
+    if (saleSource === 'ANTICIPADA') {
+      acc['anticipadaCount']++;
+      acc['anticipadaRevenue'] += price;
+    } else if (saleSource === 'PUERTA') {
+      acc['puertaCount']++;
+      acc['puertaRevenue'] += price;
+    }
+  }
+
+  private accumulateTicketStatus(status: string, ticketType: string, acc: Record<string, number>): void {
+    if (status === 'USADO_ENTRADA') {
+      acc['entriesUsedCount']++;
+      if (ticketType === 'CON_COMIDA') acc['foodPendingCount']++;
+    } else if (status === 'USADO_COMIDA') {
+      acc['entriesUsedCount']++;
+      acc['foodDeliveredCount']++;
+    } else if (status === 'VENDIDO' && ticketType === 'CON_COMIDA') {
+      acc['foodPendingCount']++;
+    }
+  }
+
+  private buildDashboardStatsResult(acc: Record<string, number>, recentTickets: Ticket[]): DashboardStats {
+    const totalIssued = acc['totalIssued'];
+    const totalRevenue = acc['totalRevenue'];
+    const anticipadaVolumePct = totalIssued > 0 ? (acc['anticipadaCount'] / totalIssued) * 100 : 0;
+    const puertaVolumePct = totalIssued > 0 ? (acc['puertaCount'] / totalIssued) * 100 : 0;
+    const anticipadaRevenuePct = totalRevenue > 0 ? (acc['anticipadaRevenue'] / totalRevenue) * 100 : 0;
+    const puertaRevenuePct = totalRevenue > 0 ? (acc['puertaRevenue'] / totalRevenue) * 100 : 0;
+    const averageTicketPrice = totalIssued > 0 ? totalRevenue / totalIssued : 0;
 
     return {
       totalRevenue,
       totalIssued,
-      ticketsSimpleCount,
-      ticketsSimpleRevenue,
-      ticketsConComidaCount,
-      ticketsConComidaRevenue,
-      anticipadaCount,
-      anticipadaRevenue,
-      puertaCount,
-      puertaRevenue,
-      entriesUsedCount,
-      foodDeliveredCount,
-      foodPendingCount,
-      annulledCount,
-      annulledRevenue,
-      recentTickets: list.slice(0, 10)
+      ticketsSimpleCount: acc['ticketsSimpleCount'],
+      ticketsSimpleRevenue: acc['ticketsSimpleRevenue'],
+      ticketsConComidaCount: acc['ticketsConComidaCount'],
+      ticketsConComidaRevenue: acc['ticketsConComidaRevenue'],
+      anticipadaCount: acc['anticipadaCount'],
+      anticipadaRevenue: acc['anticipadaRevenue'],
+      anticipadaVolumePct,
+      anticipadaRevenuePct,
+      puertaCount: acc['puertaCount'],
+      puertaRevenue: acc['puertaRevenue'],
+      puertaVolumePct,
+      puertaRevenuePct,
+      averageTicketPrice,
+      entriesUsedCount: acc['entriesUsedCount'],
+      foodDeliveredCount: acc['foodDeliveredCount'],
+      foodPendingCount: acc['foodPendingCount'],
+      annulledCount: acc['annulledCount'],
+      annulledRevenue: acc['annulledRevenue'],
+      recentTickets
     };
-  });
+  }
 
   // Active prices state for Admin management
   priceSimple = signal<number>(3000);
@@ -265,7 +352,7 @@ export class DashboardComponent implements OnInit {
             const assigned = res.data.assigned_quota ?? 0;
             const used = res.data.used_quota ?? 0;
             const avail = assigned - used;
-            this.personalQuotaAvailable.set(avail < 0 ? 0 : avail);
+            this.personalQuotaAvailable.set(Math.max(0, avail));
           }
         }
       });
@@ -276,7 +363,7 @@ export class DashboardComponent implements OnInit {
           const total = res.data.total_free_quota ?? 0;
           const used = res.data.used_free_quota ?? 0;
           const avail = total - used;
-          this.globalFreeQuotaAvailable.set(avail < 0 ? 0 : avail);
+          this.globalFreeQuotaAvailable.set(Math.max(0, avail));
         }
       }
     });
@@ -302,8 +389,8 @@ export class DashboardComponent implements OnInit {
     this.issueErrorMessage.set('');
 
     const opt = this.quotaOption();
-    let saleSource: 'ANTICIPADA' | 'PUERTA' = 'ANTICIPADA';
-    let quotaSource: 'PERSONAL' | 'LIBRE' | undefined = undefined;
+    let saleSource: 'ANTICIPADA' | 'PUERTA';
+    let quotaSource: 'PERSONAL' | 'LIBRE' | undefined;
 
     if (opt === 'PERSONAL') {
       saleSource = 'ANTICIPADA';
@@ -313,6 +400,7 @@ export class DashboardComponent implements OnInit {
       quotaSource = 'LIBRE';
     } else {
       saleSource = 'PUERTA';
+      quotaSource = undefined;
     }
 
     const payload = {
@@ -358,7 +446,7 @@ export class DashboardComponent implements OnInit {
   }
 
   copyTicketUrl(ticket: Ticket): void {
-    if (!ticket || !ticket.publicToken) return;
+    if (!ticket?.publicToken) return;
     const fullUrl = `${window.location.origin}/api/tickets/public/${ticket.publicToken}`;
     navigator.clipboard.writeText(fullUrl).then(() => {
       this.copiedPublicUrl.set(true);
@@ -368,7 +456,7 @@ export class DashboardComponent implements OnInit {
 
   copyPublicUrl(): void {
     const ticket = this.createdTicket();
-    if (!ticket || !ticket.public_url) return;
+    if (!ticket?.public_url) return;
 
     const fullUrl = `${window.location.origin}${ticket.public_url}`;
     navigator.clipboard.writeText(fullUrl).then(() => {

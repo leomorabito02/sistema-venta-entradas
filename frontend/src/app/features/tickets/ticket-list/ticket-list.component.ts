@@ -208,11 +208,11 @@ export class TicketListComponent implements OnInit {
 
   formatStatus(status?: string): string {
     if (!status) return '';
-    return status.replace(/_/g, ' ');
+    return status.replaceAll('_', ' ');
   }
 
   formatType(type?: string): string {
     if (!type) return '';
-    return type.replace(/_/g, ' ');
+    return type.replaceAll('_', ' ');
   }
 }
