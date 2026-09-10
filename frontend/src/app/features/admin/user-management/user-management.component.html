@@ -34,14 +34,9 @@
             <td>{{ u.email }}</td>
             <td>
               <label [for]="'user-role-' + u.id" class="sr-only">Rol del usuario</label>
-              <select
-                [id]="'user-role-' + u.id"
-                [value]="u.role"
-                (change)="updateRole(u.id, $any($event.target).value)"
+              <select [id]="'user-role-' + u.id" [value]="u.role" (change)="updateRole(u.id, $any($event.target).value)"
                 [disabled]="loading || updatingUserId() === u.id || u.id === authService.currentUser()?.id"
-                class="role-select"
-                aria-label="Rol del usuario"
-              >
+                class="role-select" aria-label="Rol del usuario">
                 <option value="SELLER">SELLER (Vendedor)</option>
                 <option value="ADMIN">ADMIN (Administrador)</option>
               </select>
@@ -58,21 +53,13 @@
             <td class="actions-cell">
               <span *ngIf="u.id === authService.currentUser()?.id" class="self-tag">(Tu cuenta)</span>
               <ng-container *ngIf="u.id !== authService.currentUser()?.id">
-                <button
-                  *ngIf="u.status !== 'ACTIVE'"
-                  (click)="updateStatus(u.id, 'ACTIVE')"
-                  [disabled]="loading || updatingUserId() === u.id"
-                  class="neu-btn btn-sm btn-activate"
-                >
+                <button *ngIf="u.status !== 'ACTIVE'" (click)="updateStatus(u.id, 'ACTIVE')"
+                  [disabled]="loading || updatingUserId() === u.id" class="neu-btn btn-sm btn-activate">
                   <span *ngIf="updatingUserId() === u.id" class="neu-spinner"></span>
                   <span>Activar</span>
                 </button>
-                <button
-                  *ngIf="u.status !== 'DISABLED'"
-                  (click)="updateStatus(u.id, 'DISABLED')"
-                  [disabled]="loading || updatingUserId() === u.id"
-                  class="neu-btn btn-sm btn-deactivate"
-                >
+                <button *ngIf="u.status !== 'DISABLED'" (click)="updateStatus(u.id, 'DISABLED')"
+                  [disabled]="loading || updatingUserId() === u.id" class="neu-btn btn-sm btn-deactivate">
                   <span *ngIf="updatingUserId() === u.id" class="neu-spinner"></span>
                   <span>Desactivar</span>
                 </button>
@@ -81,37 +68,30 @@
           </tr>
         </tbody>
       </table>
-    <ng-template #emptyState>
-      <p class="empty-msg">No se encontraron usuarios o aún no se han cargado.</p>
-    </ng-template>
+      <ng-template #emptyState>
+        <p class="empty-msg">No se encontraron usuarios o aún no se han cargado.</p>
+      </ng-template>
+    </div>
   </div>
-</div>
 
   <div class="neu-card section-card margin-top">
     <div class="header-action">
-      <h3>Configuración Global de Cuotas</h3>
+      <h3>Cantidades de bonos</h3>
       <button (click)="loadQuotaOverview()" [disabled]="loadingQuota()" class="neu-btn neu-btn-bordo">
         <span *ngIf="loadingQuota()" class="neu-spinner"></span>
-        <span>Recargar Cuotas</span>
+        <span>Recargar bonos</span>
       </button>
     </div>
 
     <div class="quota-config-grid" *ngIf="quotaOverview() as overview">
       <!-- Default Initial Quota Card -->
       <div class="quota-box">
-        <h4>Cuota Inicial por Defecto (Nuevos Vendedores)</h4>
-        <p class="desc">Asigna automáticamente esta cantidad de entradas a cada nuevo vendedor registrado.</p>
+        <h4>Cantidad de bonos al registrarse</h4>
+        <p class="desc">Asigna automáticamente esta cantidad de bonos a cada nuevo vendedor registrado.</p>
         <div class="form-row">
           <label for="default-quota-input" class="sr-only">Cuota inicial por defecto</label>
-          <input
-            id="default-quota-input"
-            type="number"
-            min="0"
-            [(ngModel)]="defaultQuotaInput"
-            class="neu-input"
-            placeholder="Cuota inicial"
-            aria-label="Cuota inicial por defecto"
-          />
+          <input id="default-quota-input" type="number" min="0" [(ngModel)]="defaultQuotaInput" class="neu-input"
+            placeholder="Cuota inicial" aria-label="Cuota inicial por defecto" />
           <button (click)="saveDefaultQuota()" [disabled]="savingDefaultQuota" class="neu-btn neu-btn-bordo">
             <span *ngIf="savingDefaultQuota" class="neu-spinner"></span>
             <span>Guardar Defecto</span>
@@ -121,19 +101,12 @@
 
       <!-- Global Free Quota Pool Card -->
       <div class="quota-box">
-        <h4>Bolsón de Cuota Libre Global</h4>
-        <p class="desc">Total de entradas libres compartidas cuando a un vendedor se le agota su cuota personal.</p>
+        <h4>Bonos Libres</h4>
+        <p class="desc">Total de entradas libres compartidas entre todos los vendedores.</p>
         <div class="form-row">
           <label for="free-quota-input" class="sr-only">Cuota libre global</label>
-          <input
-            id="free-quota-input"
-            type="number"
-            min="0"
-            [(ngModel)]="freeQuotaInput"
-            class="neu-input"
-            placeholder="Cuota libre global"
-            aria-label="Cuota libre global"
-          />
+          <input id="free-quota-input" type="number" min="0" [(ngModel)]="freeQuotaInput" class="neu-input"
+            placeholder="Cuota libre global" aria-label="Cuota libre global" />
           <button (click)="saveFreeQuota()" [disabled]="savingFreeQuota" class="neu-btn neu-btn-bordo">
             <span *ngIf="savingFreeQuota" class="neu-spinner"></span>
             <span>Actualizar Bolsón</span>
@@ -151,7 +124,11 @@
   <!-- Alert: Exhausted Sellers -->
   <div class="neu-card section-card margin-top warning-card" *ngIf="quotaOverview()?.exhausted_sellers?.length">
     <div class="header-action">
-      <h3 class="text-warning"><svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Usuarios Sin Cuota Personal ({{ quotaOverview()?.exhausted_sellers?.length }})</h3>
+      <h3 class="text-warning"><svg class="icon" viewBox="0 0 24 24">
+          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg> Usuarios Sin Cuota Personal ({{ quotaOverview()?.exhausted_sellers?.length }})</h3>
     </div>
     <div class="table-responsive">
       <table class="user-table">
@@ -159,10 +136,10 @@
           <tr>
             <th>Usuario</th>
             <th>Email</th>
-            <th>Cuota Asignada</th>
-            <th>Usada Personal</th>
+            <th>Bonos Asignados</th>
+            <th>Bonos Usados Personales</th>
             <th>Restante Personal</th>
-            <th>Usada Libre</th>
+            <th>Usados Libres</th>
           </tr>
         </thead>
         <tbody>
@@ -182,7 +159,7 @@
   <!-- Free Quota Usage Breakdown -->
   <div class="neu-card section-card margin-top" *ngIf="quotaOverview()?.free_quota_usage_by_seller?.length">
     <div class="header-action">
-      <h3>Uso de Cuota Libre por Usuario</h3>
+      <h3>Uso de Bonos Libres por Usuario</h3>
     </div>
     <div class="table-responsive">
       <table class="user-table">
@@ -190,14 +167,14 @@
           <tr>
             <th>Usuario</th>
             <th>Email</th>
-            <th>Entradas de Cuota Libre Usadas</th>
+            <th>Bonos Libres Usados</th>
           </tr>
         </thead>
         <tbody>
           <tr *ngFor="let u of quotaOverview()?.free_quota_usage_by_seller">
             <td><strong>{{ u.seller_name }}</strong></td>
             <td>{{ u.seller_email }}</td>
-            <td><span class="neu-badge neu-badge-usado">{{ u.used_free_quota }} entradas</span></td>
+            <td><span class="neu-badge neu-badge-usado">{{ u.used_free_quota }} bonos</span></td>
           </tr>
         </tbody>
       </table>
@@ -215,12 +192,12 @@
           <tr>
             <th>Usuario</th>
             <th>Email</th>
-            <th>Cuota Asignada</th>
-            <th>Usada Personal</th>
-            <th>Restante Personal</th>
-            <th>Usada Libre</th>
-            <th>Estado Cuota</th>
-            <th>Modificar Cuota</th>
+            <th>Bonos Asignados</th>
+            <th>Bonos Usados Personales</th>
+            <th>Bonos Restantes Personales</th>
+            <th>Bonos Usados Libres</th>
+            <th>¿Puede seguir vendiendo?</th>
+            <th>Modificar Bonos asignados</th>
           </tr>
         </thead>
         <tbody>
@@ -245,20 +222,13 @@
             </td>
             <td class="actions-cell">
               <div class="inline-edit">
-                <label [attr.for]="'seller-quota-' + s.seller_id" class="sr-only">Cuota de usuario {{ s.seller_name }}</label>
-                <input
-                  [id]="'seller-quota-' + s.seller_id"
-                  type="number"
-                  min="0"
-                  [(ngModel)]="sellerQuotaInputs[s.seller_id]"
-                  class="neu-input input-sm"
-                  [attr.aria-label]="'Cuota asignada para ' + s.seller_name"
-                />
-                <button
-                  (click)="saveSellerQuota(s.seller_id)"
-                  [disabled]="savingSellerQuotaId() === s.seller_id"
-                  class="neu-btn btn-sm neu-btn-bordo"
-                >
+                <label [attr.for]="'seller-quota-' + s.seller_id" class="sr-only">Cuota de usuario {{ s.seller_name
+                  }}</label>
+                <input [id]="'seller-quota-' + s.seller_id" type="number" min="0"
+                  [(ngModel)]="sellerQuotaInputs[s.seller_id]" class="neu-input input-sm"
+                  [attr.aria-label]="'Cuota asignada para ' + s.seller_name" />
+                <button (click)="saveSellerQuota(s.seller_id)" [disabled]="savingSellerQuotaId() === s.seller_id"
+                  class="neu-btn btn-sm neu-btn-bordo">
                   <span *ngIf="savingSellerQuotaId() === s.seller_id" class="neu-spinner"></span>
                   <span>Guardar</span>
                 </button>

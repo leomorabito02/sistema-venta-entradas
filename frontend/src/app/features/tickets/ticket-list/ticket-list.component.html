@@ -145,7 +145,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let t of filteredTickets()">
+        <tr *ngFor="let t of filteredTickets()" class="clickable-row" (click)="openDetail(t)" tabindex="0" (keydown.enter)="openDetail(t)" (keydown.space)="$event.preventDefault(); openDetail(t)">
           <td>
             <strong>#{{ t.ticketNumber || t.id.slice(0, 6) }}</strong>
           </td>
@@ -196,13 +196,10 @@
           </td>
           <td>
             <div class="action-buttons">
-              <button class="neu-btn" (click)="openDetail(t)" title="Ver Detalle del Bono">
-                <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Ver
-              </button>
               <button
                 *ngIf="t.status === 'VENDIDO'"
                 class="neu-btn btn-annul"
-                (click)="openAnnulModal(t)"
+                (click)="$event.stopPropagation(); openAnnulModal(t)"
                 title="Anular bono y devolver cupo de cuota"
               >
                 <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> Anular
@@ -293,7 +290,7 @@
 
       <!-- Public Link -->
       <div class="public-url-box">
-        <label for="public-validation-url">Enlace Público para Validación:</label>
+        <label for="public-validation-url">Enlace para el cliente:</label>
         <div class="url-input-group">
           <input id="public-validation-url" type="text" readonly [value]="'/api/tickets/public/' + selectedTicket()?.publicToken" class="neu-input" />
           <button class="neu-btn neu-btn-bordo" (click)="copyPublicUrl(selectedTicket()!)">

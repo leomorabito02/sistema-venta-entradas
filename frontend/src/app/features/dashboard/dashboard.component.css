@@ -87,7 +87,6 @@
 }
 
 .price-management-card {
-  border-top: 3px solid var(--color-gold, #D4AF37);
 }
 
 .price-inputs-grid {
@@ -193,6 +192,15 @@
 .tickets-table td {
   padding: 0.8rem 1rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.clickable-row:hover {
+  background-color: rgba(122, 0, 30, 0.06);
 }
 
 .badge {
@@ -353,8 +361,12 @@
 
 .sale-source-cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
+}
+
+.source-card-puerta {
+  grid-column: 1 / -1;
 }
 
 .source-card {
@@ -467,6 +479,60 @@
   .price-inputs-grid { grid-template-columns: 1fr; }
   .ticket-type-selector { grid-template-columns: 1fr; }
   .inputs-grid { grid-template-columns: 1fr; }
+  .detail-grid { grid-template-columns: 1fr; }
+}
+
+.code-highlight-box {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 1.5rem;
+}
+
+.highlight-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hl-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.hl-code {
+  font-size: 1.5rem;
+  font-family: monospace;
+  font-weight: 800;
+  color: var(--color-bordo);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.detail-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.9rem;
+}
+
+.detail-label {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.public-url-box {
+  margin-top: 1rem;
+}
+
+.url-input-group {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
 }
 
 

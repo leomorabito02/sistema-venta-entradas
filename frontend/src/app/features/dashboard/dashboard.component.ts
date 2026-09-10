@@ -343,6 +343,29 @@ export class DashboardComponent implements OnInit {
     });
   }
 
+  showDetailModal = signal<boolean>(false);
+  selectedTicket = signal<Ticket | null>(null);
+
+  openDetail(t: Ticket): void {
+    this.selectedTicket.set(t);
+    this.copiedPublicUrl.set(false);
+    this.showDetailModal.set(true);
+  }
+
+  closeDetail(): void {
+    this.showDetailModal.set(false);
+    this.selectedTicket.set(null);
+  }
+
+  copyTicketUrl(ticket: Ticket): void {
+    if (!ticket || !ticket.publicToken) return;
+    const fullUrl = `${window.location.origin}/api/tickets/public/${ticket.publicToken}`;
+    navigator.clipboard.writeText(fullUrl).then(() => {
+      this.copiedPublicUrl.set(true);
+      setTimeout(() => this.copiedPublicUrl.set(false), 2500);
+    });
+  }
+
   copyPublicUrl(): void {
     const ticket = this.createdTicket();
     if (!ticket || !ticket.public_url) return;
@@ -356,11 +379,11 @@ export class DashboardComponent implements OnInit {
 
   formatStatus(status?: string): string {
     if (!status) return '';
-    return status.replace(/_/g, ' ');
+    return status.replaceAll('_', ' ');
   }
 
   formatType(type?: string): string {
     if (!type) return '';
-    return type.replace(/_/g, ' ');
+    return type.replaceAll('_', ' ');
   }
 }

@@ -183,22 +183,64 @@ a {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(43, 35, 37, 0.65);
-  backdrop-filter: blur(4px);
+  background: rgba(43, 35, 37, 0.68);
+  backdrop-filter: blur(5px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1100;
-  padding: 1rem;
+  padding: 0.75rem;
 }
 
 .modal-card {
-  max-height: 90vh;
+  max-height: 92vh;
   max-width: 560px;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin: auto;
+}
+
+.modal-body {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  margin: auto;
+  max-height: calc(92vh - 120px);
+}
+
+@media (max-width: 600px) {
+  .modal-backdrop {
+    padding: 0.5rem;
+    align-items: flex-end;
+  }
+
+  .modal-card {
+    max-height: 94vh;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    padding: 1.25rem 1rem;
+  }
+
+  .modal-footer {
+    flex-direction: column-reverse;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .modal-footer .neu-btn {
+    width: 100%;
+    min-height: 48px;
+  }
+
+  .url-input-group {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .url-input-group .neu-btn {
+    width: 100%;
+    min-height: 44px;
+  }
 }
 
 /* Table Touch Scroll Container */

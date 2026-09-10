@@ -207,7 +207,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let t of stats().recentTickets">
+            <tr *ngFor="let t of stats().recentTickets" class="clickable-row" (click)="openDetail(t)" tabindex="0" (keydown.enter)="openDetail(t)" (keydown.space)="$event.preventDefault(); openDetail(t)">
               <td><strong>#{{ t.ticketNumber || t.id.slice(0, 6) }}</strong></td>
               <td><code>{{ t.fourDigitCode || (t.publicToken ? t.publicToken.slice(0, 4) : '') }}</code></td>
               <td>{{ t.buyerName || 'Cliente General' }}</td>
@@ -286,7 +286,7 @@
         </div>
 
         <div class="sale-source-container">
-          <label class="label-title">Fuente / Origen de Emisión:</label>
+          <span class="label-title">Fuente / Origen de Emisión:</span>
           <div class="sale-source-cards">
             <button
               type="button"
@@ -320,7 +320,7 @@
 
             <button
               type="button"
-              class="source-card neu-card"
+              class="source-card source-card-puerta neu-card"
               [class.selected]="quotaOption() === 'PUERTA'"
               (click)="quotaOption.set('PUERTA')"
             >
@@ -454,6 +454,97 @@
         <div class="modal-footer">
           <button class="neu-btn neu-btn-bordo" (click)="closeIssueModal()">Cerrar y Volver al Dashboard</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DETALLE DEL BONO EN DASHBOARD -->
+  <div *ngIf="showDetailModal() && selectedTicket()" class="modal-backdrop" (click)="closeDetail()" (keydown.escape)="closeDetail()" tabindex="-1">
+    <div class="neu-card modal-card" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>
+          Detalle del Bono #{{ selectedTicket()?.ticketNumber || selectedTicket()?.id?.slice(0, 6) }}
+        </h2>
+        <button class="btn-close" (click)="closeDetail()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="code-highlight-box neu-card">
+          <div class="highlight-item">
+            <span class="hl-label">Código de 4 Dígitos</span>
+            <span class="hl-code">{{ selectedTicket()?.fourDigitCode }}</span>
+          </div>
+          <div class="highlight-item">
+            <span class="hl-label">Estado Actual</span>
+            <span
+              class="neu-badge"
+              [ngClass]="{
+                'neu-badge-vendido': selectedTicket()?.status === 'VENDIDO',
+                'neu-badge-usado': selectedTicket()?.status === 'USADO_ENTRADA' || selectedTicket()?.status === 'USADO_COMIDA',
+                'neu-badge-anulado': selectedTicket()?.status === 'ANULADO'
+              }"
+            >
+              {{ formatStatus(selectedTicket()?.status) }}
+            </span>
+          </div>
+        </div>
+
+        <div class="detail-grid">
+          <div class="detail-group">
+            <span class="detail-label">Comprador:</span>
+            <strong>{{ selectedTicket()?.buyerName || 'Cliente General' }}</strong>
+          </div>
+          <div class="detail-group">
+            <span class="detail-label">Vendedor:</span>
+            <strong>{{ selectedTicket()?.sellerName || 'Sistema / Vendedor' }}</strong>
+          </div>
+          <div class="detail-group">
+            <span class="detail-label">Tipo de Bono:</span>
+            <span>{{ formatType(selectedTicket()?.ticketType) }}</span>
+          </div>
+          <div class="detail-group">
+            <span class="detail-label">Canal de Venta:</span>
+            <span>{{ selectedTicket()?.saleSource === 'ANTICIPADA' ? 'ANTICIPADA' : 'PUERTA' }}</span>
+          </div>
+          <div class="detail-group" *ngIf="selectedTicket()?.quotaSource">
+            <span class="detail-label">Origen de Cuota:</span>
+            <span class="quota-tag" [class.personal]="selectedTicket()?.quotaSource === 'PERSONAL'" [class.libre]="selectedTicket()?.quotaSource === 'LIBRE'">
+              Cuota {{ selectedTicket()?.quotaSource === 'PERSONAL' ? 'Personal de Vendedor' : 'Compartida / Libre (Global)' }}
+            </span>
+          </div>
+          <div class="detail-group">
+            <span class="detail-label">Monto Pagado:</span>
+            <strong class="text-success">${{ selectedTicket()?.pricePaid | number:'1.2-2' }}</strong>
+          </div>
+          <div class="detail-group" *ngIf="selectedTicket()?.entryValidatedAt">
+            <span class="detail-label">Entrada Validada:</span>
+            <strong>
+              {{ selectedTicket()?.entryValidatedAt | date:'dd/MM/yyyy HH:mm' }} hs
+              <span *ngIf="selectedTicket()?.entryValidatorName"> por {{ selectedTicket()?.entryValidatorName }}</span>
+            </strong>
+          </div>
+          <div class="detail-group" *ngIf="selectedTicket()?.foodValidatedAt">
+            <span class="detail-label">Choripán Entregado:</span>
+            <strong>
+              {{ selectedTicket()?.foodValidatedAt | date:'dd/MM/yyyy HH:mm' }} hs
+              <span *ngIf="selectedTicket()?.foodValidatorName"> por {{ selectedTicket()?.foodValidatorName }}</span>
+            </strong>
+          </div>
+        </div>
+
+        <div class="public-url-box">
+          <label for="public-validation-url-dashboard">Enlace para el cliente:</label>
+          <div class="url-input-group">
+            <input id="public-validation-url-dashboard" type="text" readonly [value]="'/api/tickets/public/' + selectedTicket()?.publicToken" class="neu-input" />
+            <button class="neu-btn neu-btn-bordo" (click)="copyTicketUrl(selectedTicket()!)">
+              <svg class="icon" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> {{ copiedPublicUrl() ? '¡Copiado! ✓' : 'Copiar Link' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="neu-btn" (click)="closeDetail()">Cerrar</button>
       </div>
     </div>
   </div>

@@ -89,6 +89,15 @@
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.clickable-row:hover {
+  background-color: rgba(122, 0, 30, 0.06);
+}
+
 .code-chip {
   font-family: monospace;
   font-weight: 700;
