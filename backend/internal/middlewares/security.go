@@ -29,7 +29,9 @@ func RequestLogger(next http.Handler) http.Handler {
 		start := time.Now()
 		srw := &statusResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 		next.ServeHTTP(srw, r)
-		log.Printf("[HTTP] %s %s %d (%v)", r.Method, r.URL.Path, srw.statusCode, time.Since(start))
+		safePath := strings.ReplaceAll(strings.ReplaceAll(r.URL.Path, "\n", ""), "\r", "")
+		/* #nosec G706 */
+		log.Printf("[HTTP] %s %s %d (%v)", r.Method, safePath, srw.statusCode, time.Since(start))
 	})
 }
 

@@ -2,6 +2,9 @@ frontend/node_modules
 frontend/dist
 frontend/.env
 backend/.env
+backend/sast_report.json
+backend/sca_report.txt
+backend/zap_report.html
 tests/load/.env.test
 tests/load/fixtures/seed_tokens.json
 tests/load/setup_api/setup_api

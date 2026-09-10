@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -53,14 +54,20 @@ func initDatabase(dsn string) (dbRepos, func()) {
 	if adminEmail == "" {
 		adminEmail = "admin@sistema.com"
 	}
+	adminEmail = strings.ReplaceAll(strings.ReplaceAll(adminEmail, "\n", ""), "\r", "")
 
 	if err := r.userRepo.SeedInitialAdmin(context.Background(), adminEmail, "Administrator"); err != nil {
 		log.Printf("Warning: Failed to seed initial admin user: %v", err)
 	} else {
+		/* #nosec G706 */
 		log.Printf("Initial admin user initialized (%s)", adminEmail)
 	}
 
-	return r, func() { db.Close() }
+	return r, func() {
+		if err := db.Close(); err != nil {
+			log.Printf("Error closing database: %v", err)
+		}
+	}
 }
 
 func main() {
@@ -80,6 +87,7 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
+	port = strings.ReplaceAll(strings.ReplaceAll(port, "\n", ""), "\r", "")
 
 	dsn := os.Getenv("DATABASE_URL")
 	jsonView := views.NewJSONView()
@@ -124,6 +132,7 @@ func main() {
 	signal.Notify(shutdownChan, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
+		/* #nosec G706 */
 		log.Printf("Server listening on port %s", port)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("HTTP server error: %v", err)

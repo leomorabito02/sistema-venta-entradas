@@ -1,8 +1,8 @@
 # Stage 1: Build Angular application using pnpm
 FROM node:22-alpine AS builder
 
-# Enable pnpm via corepack
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Enable pnpm via corepack (pinned to v11.17.0 to match local environment and lockfile format)
+RUN corepack enable && corepack prepare pnpm@11.17.0 --activate
 
 WORKDIR /app
 
@@ -13,7 +13,10 @@ ENV CI=true
 COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* .npmrc* ./
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+# --ignore-scripts bypasses ERR_PNPM_IGNORED_BUILDS: native binaries (esbuild,
+# @parcel/watcher, etc.) ship as platform-specific optional packages, so their
+# postinstall scripts are verification-only and not required for ng build.
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Copy application source
 COPY . .

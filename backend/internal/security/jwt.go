@@ -24,7 +24,7 @@ type JWTClaims struct {
 func getJWTSecret() []byte {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		secret = "fallback_dev_jwt_secret_key_change_in_production"
+		panic("JWT_SECRET environment variable is required but not set")
 	}
 	return []byte(secret)
 }
