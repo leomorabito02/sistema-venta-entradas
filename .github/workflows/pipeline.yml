@@ -256,3 +256,14 @@ jobs:
             pages deploy ./frontend/dist/frontend/browser
             --project-name=${{ secrets.CLOUDFLARE_PROJECT }}
             --branch=${{ github.ref_name }}
+
+      - name: Display Cloudflare Deployment URL
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            URL="https://${{ secrets.CLOUDFLARE_PROJECT }}.pages.dev"
+          else
+            URL="https://${{ github.ref_name }}.${{ secrets.CLOUDFLARE_PROJECT }}.pages.dev"
+          fi
+          echo "### 🚀 Cloudflare Pages Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** ${{ needs.cd-setup.outputs.env_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL:** $URL" >> $GITHUB_STEP_SUMMARY
