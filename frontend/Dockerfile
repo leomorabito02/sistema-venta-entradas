@@ -25,21 +25,29 @@ RUN ./node_modules/.bin/ng build
 # Stage 2: Serve Angular SPA using Nginx with OWASP security headers
 FROM nginx:alpine
 
-# Copy built Angular application from builder stage (root owned for container immutability, docker:S6504)
+# Install gettext for envsubst command
+RUN apk add --no-cache gettext
+
+# Copy built Angular application from builder stage
 COPY --from=builder /app/dist/frontend/browser /usr/share/nginx/html
 
-# Copy custom OWASP security-hardened Nginx configuration (root owned for container immutability, docker:S6504)
+# Copy custom OWASP security-hardened Nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Clean default assets and setup non-root execution permissions (docker:S6471, S6504, S7031 compliance)
-RUN rm -rf /usr/share/nginx/html/50x.html && \
+# Copy entrypoint script for dynamic envsubst
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+
+# Clean default assets and setup non-root execution permissions
+RUN chmod +x /docker-entrypoint.sh && \
+    rm -rf /usr/share/nginx/html/50x.html && \
     touch /var/run/nginx.pid && \
-    chown -R nginx:nginx /var/run/nginx.pid /var/cache/nginx /var/log/nginx
+    chown -R nginx:nginx /var/run/nginx.pid /var/cache/nginx /var/log/nginx /usr/share/nginx/html/assets
 
 USER nginx
 
 EXPOSE 80
 
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]
 
 
