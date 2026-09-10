@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"backend/internal/dto"
+	"backend/internal/models"
 	"backend/internal/services"
 	"backend/internal/views"
 
@@ -56,6 +57,17 @@ func (c *AuthController) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 	tokenResp, err := c.authService.AuthenticateGoogleUser(r.Context(), email, name, googleID)
 	if err != nil {
 		c.jsonView.Error(w, 0, "", err)
+		return
+	}
+
+	if tokenResp.Status == models.StatusPending {
+		statusCode := http.StatusAccepted
+		msg := "User account is pending administrator approval"
+		if tokenResp.IsNew {
+			statusCode = http.StatusCreated
+			msg = "User registered successfully. Pending administrator approval."
+		}
+		c.jsonView.Success(w, statusCode, msg, tokenResp)
 		return
 	}
 

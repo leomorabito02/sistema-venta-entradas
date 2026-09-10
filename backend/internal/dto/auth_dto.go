@@ -44,11 +44,13 @@ type UserResponse struct {
 }
 
 type TokenResponse struct {
-	AccessToken  string        `json:"access_token"`
-	TokenType    string        `json:"token_type"`
-	ExpiresIn    int64         `json:"expires_in"`
-	User         *UserResponse `json:"user"`
-	RefreshToken string        `json:"-"` // Delivered in HttpOnly cookie
+	AccessToken  string            `json:"access_token,omitempty"`
+	TokenType    string            `json:"token_type,omitempty"`
+	ExpiresIn    int64             `json:"expires_in,omitempty"`
+	User         *UserResponse     `json:"user"`
+	Status       models.UserStatus `json:"status,omitempty"`
+	IsNew        bool              `json:"is_new,omitempty"`
+	RefreshToken string            `json:"-"` // Delivered in HttpOnly cookie
 }
 
 type UpdateUserStatusRequest struct {

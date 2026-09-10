@@ -12,6 +12,13 @@ export const routes: Routes = [
       )
   },
   {
+    path: 'pending-approval',
+    loadComponent: () =>
+      import('./features/auth/pending-approval/pending-approval.component').then(
+        (m) => m.PendingApprovalComponent
+      )
+  },
+  {
     path: 'dashboard',
     canActivate: [authGuard],
     loadComponent: () =>

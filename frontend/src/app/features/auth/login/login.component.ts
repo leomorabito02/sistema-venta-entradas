@@ -36,6 +36,14 @@ export class LoginComponent {
           this.loading = false;
           this.actionType = null;
           if (res.success) {
+            const isPending = res.data?.status === 'PENDING' || res.data?.user?.status === 'PENDING';
+            if (isPending) {
+              const email = res.data?.user?.email || '';
+              const name = res.data?.user?.name || '';
+              this.router.navigate(['/pending-approval'], { queryParams: { email, name } });
+              return;
+            }
+
             this.successMessage = mode === 'register' 
               ? 'Cuenta registrada correctamente. Redirigiendo...' 
               : 'Sesión iniciada con éxito';
@@ -48,7 +56,12 @@ export class LoginComponent {
         error: (err) => {
           this.loading = false;
           this.actionType = null;
-          this.errorMessage = err.error?.error || err.error?.message || 'Error al validar credenciales de Google';
+          const errMsg = err.error?.error || err.error?.message || '';
+          if (errMsg.includes('PENDING')) {
+            this.router.navigate(['/pending-approval']);
+            return;
+          }
+          this.errorMessage = errMsg || 'Error al validar credenciales de Google';
         }
       });
     } catch (err: any) {

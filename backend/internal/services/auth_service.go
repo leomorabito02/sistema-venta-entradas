@@ -61,14 +61,24 @@ func (s *authService) AuthenticateGoogleUser(ctx context.Context, email, name, g
 	}
 
 	if isNew || user.Status == models.StatusPending {
-		return nil, models.NewForbiddenError("User account is PENDING activation by an administrator", nil)
+		return &dto.TokenResponse{
+			User:   s.toUserResponse(user),
+			Status: models.StatusPending,
+			IsNew:  isNew,
+		}, nil
 	}
 
 	if user.Status == models.StatusDisabled {
 		return nil, models.NewForbiddenError("User account is DISABLED", nil)
 	}
 
-	return s.issueTokens(ctx, user)
+	tokenResp, err := s.issueTokens(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+	tokenResp.Status = user.Status
+	tokenResp.IsNew = isNew
+	return tokenResp, nil
 }
 
 func (s *authService) RotateRefreshToken(ctx context.Context, rawRefreshToken string) (*dto.TokenResponse, error) {

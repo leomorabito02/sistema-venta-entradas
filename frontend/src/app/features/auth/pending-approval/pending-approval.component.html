@@ -1,0 +1,55 @@
+<div class="pending-container">
+  <div class="neu-card pending-card">
+    <div class="status-icon-wrapper">
+      <svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+    </div>
+
+    <h1 class="pending-title">Aprobación Pendiente</h1>
+    <p class="pending-subtitle">
+      Tu cuenta de vendedor ha sido registrada exitosamente en el sistema de la <strong>Peña 2026</strong>.
+    </p>
+
+    <div class="info-banner">
+      <div class="info-banner-header">
+        <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        <span>Activación requerida</span>
+      </div>
+      <p>
+        Para comenzar a emitir bonos y acceder al panel de ventas, un <strong>Administrador debe autorizar y activar tu cuenta</strong>.
+      </p>
+    </div>
+
+    <div *ngIf="userEmail || userName" class="user-details-box">
+      <div *ngIf="userName" class="detail-item">
+        <span class="label">Usuario:</span>
+        <span class="value">{{ userName }}</span>
+      </div>
+      <div *ngIf="userEmail" class="detail-item">
+        <span class="label">Email:</span>
+        <span class="value">{{ userEmail }}</span>
+      </div>
+    </div>
+
+    <div class="contact-box">
+      <h3>¿Qué debes hacer ahora?</h3>
+      <p>
+        Ponte en contacto con los organizadores o coordinadores de la Peña para informar tu registro y solicitar la activación de tu usuario.
+      </p>
+    </div>
+
+    <div class="action-buttons">
+      <button class="neu-btn neu-btn-bordo" (click)="onBackToLogin()">
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="19" y1="12" x2="5" y2="12"/>
+          <polyline points="12 19 5 12 12 5"/>
+        </svg>
+        Volver al Inicio de Sesión
+      </button>
+    </div>
+  </div>
+</div>

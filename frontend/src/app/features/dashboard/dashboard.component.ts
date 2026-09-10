@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
-import { Ticket, User, DashboardStats } from '../../core/models/api.models';
+import { Ticket, User, DashboardStats, SellerRankingItem } from '../../core/models/api.models';
 
 @Component({
   selector: 'app-dashboard',
@@ -36,9 +36,67 @@ export class DashboardComponent implements OnInit {
     return list.filter(t => t.sellerId === sellerFilter);
   });
 
-  readonly stats = computed<DashboardStats>(() => {
-    const list = this.filteredTickets();
+  readonly sellerRanking = computed<SellerRankingItem[]>(() => {
+    const list = this.tickets();
+    const usersList = this.users();
+    const map = new Map<string, SellerRankingItem>();
 
+    for (const u of usersList) {
+      map.set(u.id, {
+        sellerId: u.id,
+        sellerName: u.name,
+        sellerEmail: u.email,
+        totalIssued: 0,
+        totalRevenue: 0,
+        averageTicket: 0,
+        anticipadaCount: 0,
+        puertaCount: 0
+      });
+    }
+
+    for (const t of list) {
+      if (t.status === 'ANULADO') continue;
+
+      let item = map.get(t.sellerId);
+      if (!item) {
+        item = {
+          sellerId: t.sellerId,
+          sellerName: t.sellerName || 'Vendedor Desconocido',
+          sellerEmail: '',
+          totalIssued: 0,
+          totalRevenue: 0,
+          averageTicket: 0,
+          anticipadaCount: 0,
+          puertaCount: 0
+        };
+        map.set(t.sellerId, item);
+      }
+
+      item.totalIssued++;
+      item.totalRevenue += (t.pricePaid || 0);
+      if (t.saleSource === 'ANTICIPADA') {
+        item.anticipadaCount++;
+      } else if (t.saleSource === 'PUERTA') {
+        item.puertaCount++;
+      }
+    }
+
+    const result: SellerRankingItem[] = [];
+    map.forEach(item => {
+      if (item.totalIssued > 0) {
+        item.averageTicket = item.totalRevenue / item.totalIssued;
+        result.push(item);
+      }
+    });
+
+    return result.sort((a, b) => b.totalRevenue - a.totalRevenue || b.totalIssued - a.totalIssued);
+  });
+
+  readonly stats = computed<DashboardStats>(() => {
+    return this.calculateDashboardStats(this.filteredTickets());
+  });
+
+  private calculateDashboardStats(list: Ticket[]): DashboardStats {
     let totalRevenue = 0;
     let totalIssued = 0;
     let ticketsSimpleCount = 0;
@@ -65,7 +123,6 @@ export class DashboardComponent implements OnInit {
       totalIssued++;
       totalRevenue += t.pricePaid || 0;
 
-      // Breakdown by Ticket Type
       if (t.ticketType === 'SIMPLE') {
         ticketsSimpleCount++;
         ticketsSimpleRevenue += t.pricePaid || 0;
@@ -74,7 +131,6 @@ export class DashboardComponent implements OnInit {
         ticketsConComidaRevenue += t.pricePaid || 0;
       }
 
-      // Breakdown by Sale Source (ANTICIPADA vs PUERTA)
       if (t.saleSource === 'ANTICIPADA') {
         anticipadaCount++;
         anticipadaRevenue += t.pricePaid || 0;
@@ -83,12 +139,9 @@ export class DashboardComponent implements OnInit {
         puertaRevenue += t.pricePaid || 0;
       }
 
-      // Usage / Food status
       if (t.status === 'USADO_ENTRADA') {
         entriesUsedCount++;
-        if (t.ticketType === 'CON_COMIDA') {
-          foodPendingCount++;
-        }
+        if (t.ticketType === 'CON_COMIDA') foodPendingCount++;
       } else if (t.status === 'USADO_COMIDA') {
         entriesUsedCount++;
         foodDeliveredCount++;
@@ -96,6 +149,12 @@ export class DashboardComponent implements OnInit {
         foodPendingCount++;
       }
     }
+
+    const anticipadaVolumePct = totalIssued > 0 ? (anticipadaCount / totalIssued) * 100 : 0;
+    const puertaVolumePct = totalIssued > 0 ? (puertaCount / totalIssued) * 100 : 0;
+    const anticipadaRevenuePct = totalRevenue > 0 ? (anticipadaRevenue / totalRevenue) * 100 : 0;
+    const puertaRevenuePct = totalRevenue > 0 ? (puertaRevenue / totalRevenue) * 100 : 0;
+    const averageTicketPrice = totalIssued > 0 ? totalRevenue / totalIssued : 0;
 
     return {
       totalRevenue,
@@ -106,8 +165,13 @@ export class DashboardComponent implements OnInit {
       ticketsConComidaRevenue,
       anticipadaCount,
       anticipadaRevenue,
+      anticipadaVolumePct,
+      anticipadaRevenuePct,
       puertaCount,
       puertaRevenue,
+      puertaVolumePct,
+      puertaRevenuePct,
+      averageTicketPrice,
       entriesUsedCount,
       foodDeliveredCount,
       foodPendingCount,
@@ -115,7 +179,7 @@ export class DashboardComponent implements OnInit {
       annulledRevenue,
       recentTickets: list.slice(0, 10)
     };
-  });
+  }
 
   // Active prices state for Admin management
   priceSimple = signal<number>(3000);
@@ -265,7 +329,7 @@ export class DashboardComponent implements OnInit {
             const assigned = res.data.assigned_quota ?? 0;
             const used = res.data.used_quota ?? 0;
             const avail = assigned - used;
-            this.personalQuotaAvailable.set(avail < 0 ? 0 : avail);
+            this.personalQuotaAvailable.set(Math.max(0, avail));
           }
         }
       });
@@ -276,7 +340,7 @@ export class DashboardComponent implements OnInit {
           const total = res.data.total_free_quota ?? 0;
           const used = res.data.used_free_quota ?? 0;
           const avail = total - used;
-          this.globalFreeQuotaAvailable.set(avail < 0 ? 0 : avail);
+          this.globalFreeQuotaAvailable.set(Math.max(0, avail));
         }
       }
     });
@@ -302,8 +366,8 @@ export class DashboardComponent implements OnInit {
     this.issueErrorMessage.set('');
 
     const opt = this.quotaOption();
-    let saleSource: 'ANTICIPADA' | 'PUERTA' = 'ANTICIPADA';
-    let quotaSource: 'PERSONAL' | 'LIBRE' | undefined = undefined;
+    let saleSource: 'ANTICIPADA' | 'PUERTA';
+    let quotaSource: 'PERSONAL' | 'LIBRE' | undefined;
 
     if (opt === 'PERSONAL') {
       saleSource = 'ANTICIPADA';
@@ -313,6 +377,7 @@ export class DashboardComponent implements OnInit {
       quotaSource = 'LIBRE';
     } else {
       saleSource = 'PUERTA';
+      quotaSource = undefined;
     }
 
     const payload = {
@@ -358,7 +423,7 @@ export class DashboardComponent implements OnInit {
   }
 
   copyTicketUrl(ticket: Ticket): void {
-    if (!ticket || !ticket.publicToken) return;
+    if (!ticket?.publicToken) return;
     const fullUrl = `${window.location.origin}/api/tickets/public/${ticket.publicToken}`;
     navigator.clipboard.writeText(fullUrl).then(() => {
       this.copiedPublicUrl.set(true);
@@ -368,7 +433,7 @@ export class DashboardComponent implements OnInit {
 
   copyPublicUrl(): void {
     const ticket = this.createdTicket();
-    if (!ticket || !ticket.public_url) return;
+    if (!ticket?.public_url) return;
 
     const fullUrl = `${window.location.origin}${ticket.public_url}`;
     navigator.clipboard.writeText(fullUrl).then(() => {

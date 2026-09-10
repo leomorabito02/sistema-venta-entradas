@@ -14,10 +14,12 @@ export interface User {
 }
 
 export interface TokenResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-  user: User;
+  access_token?: string;
+  token_type?: string;
+  expires_in?: number;
+  user?: User;
+  status?: string;
+  is_new?: boolean;
 }
 
 export interface CreateTicketPayload {
@@ -77,6 +79,17 @@ export interface Ticket {
   foodValidatorName?: string;
 }
 
+export interface SellerRankingItem {
+  sellerId: string;
+  sellerName: string;
+  sellerEmail?: string;
+  totalIssued: number;
+  totalRevenue: number;
+  averageTicket: number;
+  anticipadaCount: number;
+  puertaCount: number;
+}
+
 export interface DashboardStats {
   totalRevenue: number;
   totalIssued: number;
@@ -86,8 +99,13 @@ export interface DashboardStats {
   ticketsConComidaRevenue: number;
   anticipadaCount: number;
   anticipadaRevenue: number;
+  anticipadaVolumePct: number;
+  anticipadaRevenuePct: number;
   puertaCount: number;
   puertaRevenue: number;
+  puertaVolumePct: number;
+  puertaRevenuePct: number;
+  averageTicketPrice: number;
   entriesUsedCount: number;
   foodDeliveredCount: number;
   foodPendingCount: number;
