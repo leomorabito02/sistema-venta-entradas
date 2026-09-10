@@ -48,8 +48,21 @@ func main() {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	}
 
+	// Add assigned_free_quota column if it does not exist
+	_ = db.Exec(`ALTER TABLE seller_quotas ADD COLUMN IF NOT EXISTS assigned_free_quota INT NOT NULL DEFAULT 5;`).Error
+	_ = db.Exec(`ALTER TABLE default_quota_configs ADD COLUMN IF NOT EXISTS default_free_quota INT NOT NULL DEFAULT 5;`).Error
+
+	// Delete historical ticket validations and tickets created with free quota ('LIBRE') per business request
+	log.Println("Cleaning up historical tickets with quota_source = 'LIBRE'...")
+	_ = db.Exec(`DELETE FROM ticket_validations WHERE ticket_id IN (SELECT id FROM tickets WHERE quota_source = 'LIBRE');`).Error
+	_ = db.Exec(`DELETE FROM tickets WHERE quota_source = 'LIBRE';`).Error
+
+	// Drop deprecated global_free_quotas table
+	log.Println("Dropping global_free_quotas table...")
+	_ = db.Exec(`DROP TABLE IF EXISTS global_free_quotas;`).Error
+
 	// Ensure quota_source in tickets table is NOT NULL and existing NULL values are updated
-	_ = db.Exec(`UPDATE tickets SET quota_source = 'LIBRE' WHERE quota_source IS NULL OR quota_source = '';`).Error
+	_ = db.Exec(`UPDATE tickets SET quota_source = 'PERSONAL' WHERE quota_source IS NULL OR quota_source = '';`).Error
 	_ = db.Exec(`ALTER TABLE tickets ALTER COLUMN quota_source SET NOT NULL;`).Error
 
 	// Create partial unique index on 4-digit codes for active tickets (RNF-06.02)

@@ -129,7 +129,8 @@
     <button class="neu-btn" (click)="clearFilters()">Restablecer Filtros</button>
   </div>
 
-  <div *ngIf="!loading() && filteredTickets().length > 0" class="neu-card table-responsive">
+  <!-- Tabla de Tickets (Desktop) -->
+  <div *ngIf="!loading() && filteredTickets().length > 0" class="neu-card table-responsive desktop-only-table">
     <table class="tickets-table">
       <thead>
         <tr>
@@ -209,6 +210,68 @@
         </tr>
       </tbody>
     </table>
+  </div>
+
+  <!-- Vista Móvil: Tarjetas de Ticket (< 768px) -->
+  <div *ngIf="!loading() && filteredTickets().length > 0" class="mobile-only-cards">
+    <button
+      *ngFor="let t of filteredTickets()"
+      class="neu-card mobile-ticket-card"
+      (click)="openDetail(t)"
+      type="button"
+    >
+      <div class="card-header-row">
+        <span class="card-ticket-num">#{{ t.ticketNumber || t.id.slice(0, 6) }}</span>
+        <span
+          class="neu-badge"
+          [ngClass]="{
+            'neu-badge-vendido': t.status === 'VENDIDO',
+            'neu-badge-usado': t.status === 'USADO_ENTRADA' || t.status === 'USADO_COMIDA',
+            'neu-badge-anulado': t.status === 'ANULADO'
+          }"
+        >
+          {{ formatStatus(t.status) }}
+        </span>
+      </div>
+
+      <div class="card-body-row">
+        <div class="card-main-info">
+          <strong class="card-buyer">{{ t.buyerName || 'Cliente General' }}</strong>
+          <span class="card-seller">Vendedor: {{ t.sellerName || 'Sistema' }}</span>
+        </div>
+        <div class="card-code-display">
+          <span class="code-chip lg">{{ t.fourDigitCode || (t.publicToken ? t.publicToken.slice(0, 4) : 'N/A') }}</span>
+        </div>
+      </div>
+
+      <div class="card-footer-row">
+        <div class="card-tags">
+          <span
+            class="badge"
+            [class.badge-simple]="t.ticketType === 'SIMPLE'"
+            [class.badge-comida]="t.ticketType === 'CON_COMIDA'"
+          >
+            {{ formatType(t.ticketType) }}
+          </span>
+          <span class="badge badge-source">
+            {{ t.saleSource === 'ANTICIPADA' ? 'ANTICIPADA' : 'PUERTA' }}
+          </span>
+          <span *ngIf="t.quotaSource" class="quota-tag" [class.personal]="t.quotaSource === 'PERSONAL'" [class.libre]="t.quotaSource === 'LIBRE'">
+            {{ t.quotaSource }}
+          </span>
+        </div>
+        <div class="card-price-action">
+          <span class="card-price">${{ t.pricePaid | number:'1.2-2' }}</span>
+          <button
+            *ngIf="t.status === 'VENDIDO'"
+            class="neu-btn btn-annul sm"
+            (click)="$event.stopPropagation(); openAnnulModal(t)"
+          >
+            Anular
+          </button>
+        </div>
+      </div>
+    </button>
   </div>
 </section>
 

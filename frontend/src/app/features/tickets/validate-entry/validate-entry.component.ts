@@ -6,6 +6,22 @@ import { ApiService, Ticket } from '../../../core/services/api.service';
 
 type ValidationMode = 'code' | 'qr' | 'search';
 
+export interface ValidationOverlayState {
+  type: 'success' | 'food-success' | 'error' | 'warning';
+  title: string;
+  ticket?: Ticket;
+  buyerName?: string;
+  sellerName?: string;
+  createdAt?: string;
+  ticketType?: string;
+  entryValidatedAt?: string;
+  entryValidatorName?: string;
+  foodValidatedAt?: string;
+  foodValidatorName?: string;
+  pricePaid?: number;
+  details?: string;
+}
+
 @Component({
   selector: 'app-validate-entry',
   standalone: true,
@@ -20,7 +36,6 @@ export class ValidateEntryComponent implements OnDestroy {
 
   activeMode = signal<ValidationMode>('code');
   fourDigitInput = '';
-  qrTokenInput = '';
 
   sellerNameSearch = '';
   buyerNameSearch = '';
@@ -33,9 +48,7 @@ export class ValidateEntryComponent implements OnDestroy {
   loading = signal(false);
   validating = signal(false);
 
-  errorMessage = signal<string | null>(null);
-  successMessage = signal<string | null>(null);
-  justValidated = signal<boolean>(false);
+  validationOverlay = signal<ValidationOverlayState | null>(null);
 
   cameraActive = signal(false);
   cameraError = signal<string | null>(null);
@@ -46,8 +59,10 @@ export class ValidateEntryComponent implements OnDestroy {
 
   switchMode(mode: ValidationMode): void {
     this.activeMode.set(mode);
-    this.clearMessages();
-    if (mode !== 'qr' && this.cameraActive()) {
+    this.dismissOverlay();
+    if (mode === 'qr') {
+      this.startCamera();
+    } else {
       this.stopCamera();
     }
     if (mode === 'search' && this.allTickets().length === 0) {
@@ -55,74 +70,183 @@ export class ValidateEntryComponent implements OnDestroy {
     }
   }
 
-  clearMessages(): void {
-    this.errorMessage.set(null);
-    this.successMessage.set(null);
+  appendDigit(digit: string): void {
+    if (this.fourDigitInput.length < 4) {
+      this.fourDigitInput += digit;
+      if (this.fourDigitInput.length === 4) {
+        this.searchByCode();
+      }
+    }
   }
 
-  clearSelection(): void {
-    this.selectedTicket.set(null);
-    this.justValidated.set(false);
-    this.clearMessages();
+  deleteDigit(): void {
+    if (this.fourDigitInput.length > 0) {
+      this.fourDigitInput = this.fourDigitInput.slice(0, -1);
+    }
   }
 
-  searchByCode(): void {
-    this.clearMessages();
-    this.selectedTicket.set(null);
-    this.justValidated.set(false);
+  clearDigit(): void {
+    this.fourDigitInput = '';
+  }
 
-    const code = this.fourDigitInput.trim();
-    if (code?.length !== 4) {
-      this.errorMessage.set('Ingrese un código de 4 dígitos válido.');
+  dismissOverlay(): void {
+    this.validationOverlay.set(null);
+    this.fourDigitInput = '';
+    this.selectedTicket.set(null);
+    if (this.activeMode() === 'qr' && !this.cameraActive()) {
+      this.startCamera();
+    }
+  }
+
+  private triggerHaptic(success: boolean): void {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      if (success) {
+        navigator.vibrate(200);
+      } else {
+        navigator.vibrate([100, 50, 100]);
+      }
+    }
+  }
+
+  private findFallbackAndHandleError(code?: string, token?: string, err?: any): void {
+    if (!code && !token) {
+      this.handleEntryError(err);
       return;
     }
 
-    this.loading.set(true);
     this.apiService.listTickets().subscribe({
       next: (res) => {
-        this.loading.set(false);
         if (res.success && res.data) {
-          const match = res.data.find(t => t.fourDigitCode === code);
-          if (match) {
-            this.selectedTicket.set(match);
-          } else {
-            this.errorMessage.set(`No se encontró ningún bono con el código ${code}.`);
-          }
+          const matched = res.data.find(t =>
+            (code && t.fourDigitCode === code) ||
+            (token && t.publicToken === token)
+          );
+          this.handleEntryError(err, matched);
         } else {
-          this.errorMessage.set(res.message || 'Error al buscar bono.');
+          this.handleEntryError(err);
         }
       },
-      error: (err) => {
-        this.loading.set(false);
-        this.errorMessage.set(err.error?.message || 'Error de servidor al buscar el bono.');
+      error: () => {
+        this.handleEntryError(err);
       }
     });
   }
 
-  searchByToken(): void {
-    this.clearMessages();
-    this.selectedTicket.set(null);
-    this.justValidated.set(false);
+  private handleEntrySuccess(t: Ticket): void {
+    this.triggerHaptic(true);
+    this.allTickets.update(tickets => tickets.map(item => item.id === t.id ? { ...item, ...t } : item));
+    this.onSearchFilterChange();
+    const buyerName = t.buyerName || (t.buyer ? `${t.buyer.first_name} ${t.buyer.last_name}` : 'Comprador General');
+    this.validationOverlay.set({
+      type: 'success',
+      title: 'La entrada es válida',
+      ticket: t,
+      buyerName: buyerName,
+      sellerName: t.sellerName || 'Sistema / Vendedor',
+      createdAt: t.createdAt,
+      ticketType: t.ticketType === 'CON_COMIDA' ? 'CON COMIDA' : 'SIMPLE (Solo Entrada)',
+      entryValidatedAt: t.entryValidatedAt || new Date().toISOString(),
+      entryValidatorName: t.entryValidatorName,
+      foodValidatedAt: t.foodValidatedAt,
+      foodValidatorName: t.foodValidatorName,
+      pricePaid: t.pricePaid
+    });
+  }
 
-    const token = this.qrTokenInput.trim();
-    if (!token) {
-      this.errorMessage.set('Ingrese un token público válido.');
+  private handleEntryError(err: any, fallbackTicket?: Ticket): void {
+    this.triggerHaptic(false);
+    const errorMsg = (err?.error?.error || err?.error?.message || err?.message || '').toLowerCase();
+
+    if (errorMsg.includes('anulad') || fallbackTicket?.status === 'ANULADO') {
+      this.validationOverlay.set({
+        type: 'error',
+        title: 'La entrada está anulada',
+        details: 'Este bono fue anulado y no es válido para ingresar.'
+      });
+    } else if (errorMsg.includes('usad') || errorMsg.includes('ingresad') || errorMsg.includes('already') || fallbackTicket?.status === 'USADO_ENTRADA' || fallbackTicket?.status === 'USADO_COMIDA') {
+      this.validationOverlay.set({
+        type: 'warning',
+        title: 'La entrada ya fue utilizada',
+        buyerName: fallbackTicket?.buyerName,
+        sellerName: fallbackTicket?.sellerName,
+        createdAt: fallbackTicket?.createdAt,
+        ticketType: fallbackTicket?.ticketType === 'CON_COMIDA' ? 'CON COMIDA' : 'SIMPLE (Solo Entrada)',
+        entryValidatedAt: fallbackTicket?.entryValidatedAt,
+        entryValidatorName: fallbackTicket?.entryValidatorName,
+        foodValidatedAt: fallbackTicket?.foodValidatedAt,
+        foodValidatorName: fallbackTicket?.foodValidatorName,
+        pricePaid: fallbackTicket?.pricePaid,
+        details: 'Este bono ya ingresó al evento anteriormente.'
+      });
+    } else {
+      this.validationOverlay.set({
+        type: 'error',
+        title: 'La entrada no es válida',
+        details: 'No existe ningún bono registrado con este código o token.'
+      });
+    }
+  }
+
+  searchByCode(): void {
+    const code = this.fourDigitInput.trim();
+    if (code.length !== 4) {
+      this.triggerHaptic(false);
+      this.validationOverlay.set({
+        type: 'error',
+        title: 'La entrada no es válida',
+        details: 'El código debe ser exactamente de 4 dígitos.'
+      });
       return;
     }
 
     this.loading.set(true);
-    this.apiService.getPublicTicket(token).subscribe({
+    this.apiService.validateTicket({
+      four_digit_code: code,
+      validation_type: 'ENTRADA'
+    }).subscribe({
       next: (res) => {
         this.loading.set(false);
         if (res.success && res.data) {
-          this.selectedTicket.set(res.data);
+          this.handleEntrySuccess(res.data);
         } else {
-          this.errorMessage.set(res.message || 'Bono no encontrado con ese token.');
+          this.findFallbackAndHandleError(code, undefined, { error: { message: res.message } });
         }
       },
       error: (err) => {
         this.loading.set(false);
-        this.errorMessage.set(err.error?.message || 'Error al obtener el bono por token.');
+        this.findFallbackAndHandleError(code, undefined, err);
+      }
+    });
+  }
+
+  validateTicketDirect(ticket: Ticket): void {
+    if (ticket.status === 'ANULADO') {
+      this.handleEntryError({ error: { message: 'anulado' } }, ticket);
+      return;
+    }
+
+    if (ticket.status === 'USADO_ENTRADA' || ticket.status === 'USADO_COMIDA') {
+      this.handleEntryError({ error: { message: 'ya ingresado' } }, ticket);
+      return;
+    }
+
+    this.validating.set(true);
+    this.apiService.validateTicket({
+      four_digit_code: ticket.fourDigitCode,
+      public_token: ticket.publicToken,
+      validation_type: 'ENTRADA'
+    }).subscribe({
+      next: (res) => {
+        this.validating.set(false);
+        if (res.success && res.data) {
+          this.handleEntrySuccess(res.data);
+        } else {
+          this.handleEntryError({ error: { message: res.message } }, ticket);
+        }
+      },
+      error: (err) => {
+        this.validating.set(false);
+        this.handleEntryError(err, ticket);
       }
     });
   }
@@ -160,44 +284,6 @@ export class ValidateEntryComponent implements OnDestroy {
 
   selectTicket(t: Ticket): void {
     this.selectedTicket.set(t);
-    this.justValidated.set(false);
-    this.clearMessages();
-  }
-
-  validateEntry(): void {
-    const ticket = this.selectedTicket();
-    if (!ticket) return;
-
-    if (ticket.status !== 'VENDIDO') {
-      this.errorMessage.set(`No se puede validar entrada. El bono debe estar en estado VENDIDO y actualmente es ${ticket.status}.`);
-      return;
-    }
-
-    this.clearMessages();
-    this.validating.set(true);
-
-    this.apiService.validateTicket({
-      four_digit_code: ticket.fourDigitCode,
-      public_token: ticket.publicToken,
-      validation_type: 'ENTRADA'
-    }).subscribe({
-      next: (res) => {
-        this.validating.set(false);
-        if (res.success && res.data) {
-          const updatedTicket = res.data;
-          this.justValidated.set(true);
-          this.selectedTicket.set(updatedTicket);
-          this.successMessage.set('¡Entrada validada correctamente! El estado ha cambiado a USADO ENTRADA.');
-          this.allTickets.update(list => list.map(t => t.id === updatedTicket.id ? updatedTicket : t));
-        } else {
-          this.errorMessage.set(res.message || 'Error al validar la entrada.');
-        }
-      },
-      error: (err) => {
-        this.validating.set(false);
-        this.errorMessage.set(err.error?.message || 'Error al procesar la validación de entrada.');
-      }
-    });
   }
 
   startCamera(): void {
@@ -230,7 +316,7 @@ export class ValidateEntryComponent implements OnDestroy {
       })
       .catch((err) => {
         this.cameraActive.set(false);
-        this.cameraError.set('No se pudo acceder a la cámara. Revisa los permisos de tu dispositivo.');
+        this.cameraError.set('No se pudo acceder a la cámara. Revisa los permisos.');
         console.error('Camera access error:', err);
       });
   }
@@ -319,19 +405,38 @@ export class ValidateEntryComponent implements OnDestroy {
 
   private handleScannedCode(rawText: string): void {
     this.stopCamera();
-    let fourDigitCode = rawText;
+    let token = rawText;
+    let fourDigitCode = '';
+
     if (rawText.includes('/')) {
       const parts = rawText.split('/');
-      fourDigitCode = parts.at(-1) || rawText;
+      token = parts.at(-1) || rawText;
     }
 
-    if (fourDigitCode.length === 4 && /^\d{4}$/.test(fourDigitCode)) {
-      this.fourDigitInput = fourDigitCode;
-      this.searchByCode();
-    } else {
-      this.qrTokenInput = rawText;
-      this.searchByToken();
+    if (token.length === 4 && /^\d{4}$/.test(token)) {
+      fourDigitCode = token;
+      token = '';
     }
+
+    this.loading.set(true);
+    this.apiService.validateTicket({
+      four_digit_code: fourDigitCode || undefined,
+      public_token: token || undefined,
+      validation_type: 'ENTRADA'
+    }).subscribe({
+      next: (res) => {
+        this.loading.set(false);
+        if (res.success && res.data) {
+          this.handleEntrySuccess(res.data);
+        } else {
+          this.findFallbackAndHandleError(fourDigitCode, token, { error: { message: res.message } });
+        }
+      },
+      error: (err) => {
+        this.loading.set(false);
+        this.findFallbackAndHandleError(fourDigitCode, token, err);
+      }
+    });
   }
 
   stopCamera(): void {
@@ -348,10 +453,10 @@ export class ValidateEntryComponent implements OnDestroy {
 
   getStatusBadgeClass(status: string): string {
     switch (status) {
-      case 'VENDIDO': return 'badge-vendido';
+      case 'VENDIDO': return 'neu-badge-vendido';
       case 'USADO_ENTRADA':
-      case 'USADO_COMIDA': return 'badge-usado';
-      case 'ANULADO': return 'badge-anulado';
+      case 'USADO_COMIDA': return 'neu-badge-usado';
+      case 'ANULADO': return 'neu-badge-anulado';
       default: return '';
     }
   }

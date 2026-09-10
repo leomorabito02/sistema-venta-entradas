@@ -4,6 +4,22 @@ import { FormsModule } from '@angular/forms';
 import jsQR from 'jsqr';
 import { ApiService, Ticket } from '../../../core/services/api.service';
 
+export interface ValidationOverlayState {
+  type: 'success' | 'food-success' | 'error' | 'warning';
+  title: string;
+  ticket?: Ticket;
+  buyerName?: string;
+  sellerName?: string;
+  createdAt?: string;
+  ticketType?: string;
+  entryValidatedAt?: string;
+  entryValidatorName?: string;
+  foodValidatedAt?: string;
+  foodValidatorName?: string;
+  pricePaid?: number;
+  details?: string;
+}
+
 type ValidationMode = 'code' | 'qr' | 'search';
 
 @Component({
@@ -20,7 +36,6 @@ export class ValidateFoodComponent implements OnDestroy {
 
   activeMode = signal<ValidationMode>('code');
   fourDigitInput = '';
-  qrTokenInput = '';
 
   sellerNameSearch = '';
   buyerNameSearch = '';
@@ -33,9 +48,7 @@ export class ValidateFoodComponent implements OnDestroy {
   loading = signal(false);
   validating = signal(false);
 
-  errorMessage = signal<string | null>(null);
-  successMessage = signal<string | null>(null);
-  justValidated = signal<boolean>(false);
+  validationOverlay = signal<ValidationOverlayState | null>(null);
 
   cameraActive = signal(false);
   cameraError = signal<string | null>(null);
@@ -46,7 +59,7 @@ export class ValidateFoodComponent implements OnDestroy {
 
   switchMode(mode: ValidationMode): void {
     this.activeMode.set(mode);
-    this.clearMessages();
+    this.dismissOverlay();
     if (mode !== 'qr' && this.cameraActive()) {
       this.stopCamera();
     }
@@ -55,74 +68,249 @@ export class ValidateFoodComponent implements OnDestroy {
     }
   }
 
-  clearMessages(): void {
-    this.errorMessage.set(null);
-    this.successMessage.set(null);
+  appendDigit(digit: string): void {
+    if (this.fourDigitInput.length < 4) {
+      this.fourDigitInput += digit;
+      if (this.fourDigitInput.length === 4) {
+        this.searchByCode();
+      }
+    }
   }
 
-  clearSelection(): void {
-    this.selectedTicket.set(null);
-    this.justValidated.set(false);
-    this.clearMessages();
+  deleteDigit(): void {
+    if (this.fourDigitInput.length > 0) {
+      this.fourDigitInput = this.fourDigitInput.slice(0, -1);
+    }
   }
 
-  searchByCode(): void {
-    this.clearMessages();
-    this.selectedTicket.set(null);
-    this.justValidated.set(false);
+  clearDigit(): void {
+    this.fourDigitInput = '';
+  }
 
-    const code = this.fourDigitInput.trim();
-    if (code?.length !== 4) {
-      this.errorMessage.set('Ingrese un código de 4 dígitos válido.');
+  dismissOverlay(): void {
+    this.validationOverlay.set(null);
+    this.selectedTicket.set(null);
+    this.fourDigitInput = '';
+    if (this.activeMode() === 'qr' && !this.cameraActive()) {
+      this.startCamera();
+    }
+  }
+
+  triggerHaptic(success: boolean): void {
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      if (success) {
+        navigator.vibrate([150, 50, 150]);
+      } else {
+        navigator.vibrate([100, 50, 100]);
+      }
+    }
+  }
+
+  private handleFoodSuccess(t: Ticket): void {
+    this.triggerHaptic(true);
+    this.allTickets.update(tickets => tickets.map(item => item.id === t.id ? { ...item, ...t } : item));
+    this.onSearchFilterChange();
+    const buyerName = t.buyerName || (t.buyer ? `${t.buyer.first_name} ${t.buyer.last_name}` : 'Comprador General');
+    this.validationOverlay.set({
+      type: 'food-success',
+      title: 'Bono validado para retirar comida',
+      ticket: t,
+      buyerName: buyerName,
+      sellerName: t.sellerName || 'Sistema / Vendedor',
+      createdAt: t.createdAt,
+      ticketType: t.ticketType === 'CON_COMIDA' ? 'CON COMIDA' : 'SIMPLE (Solo Entrada)',
+      entryValidatedAt: t.entryValidatedAt,
+      entryValidatorName: t.entryValidatorName,
+      foodValidatedAt: t.foodValidatedAt || new Date().toISOString(),
+      foodValidatorName: t.foodValidatorName,
+      pricePaid: t.pricePaid
+    });
+  }
+
+  private handleFoodError(err: any, fallbackTicket?: Ticket): void {
+    this.triggerHaptic(false);
+    const errorMsg = (err?.error?.error || err?.error?.message || err?.message || '').toLowerCase();
+
+    const isSimple = fallbackTicket?.ticketType === 'SIMPLE' || errorMsg.includes('simple') || errorMsg.includes('no incluye comida');
+    const isAnnulled = fallbackTicket?.status === 'ANULADO' || errorMsg.includes('anulad');
+    const notEnteredYet = fallbackTicket?.status === 'VENDIDO' || errorMsg.includes('ingreso') || errorMsg.includes('entrada') || errorMsg.includes('puerta');
+    const foodAlreadyDelivered = fallbackTicket?.status === 'USADO_COMIDA' || errorMsg.includes('entregad') || errorMsg.includes('ya retirad');
+
+    if (isAnnulled) {
+      this.validationOverlay.set({
+        type: 'error',
+        title: 'La entrada está anulada',
+        details: 'Este bono fue anulado y no es válido para comida.'
+      });
+    } else if (isSimple && notEnteredYet) {
+      this.validationOverlay.set({
+        type: 'error',
+        title: 'El ticket no incluye comida',
+        buyerName: fallbackTicket?.buyerName,
+        sellerName: fallbackTicket?.sellerName,
+        createdAt: fallbackTicket?.createdAt,
+        ticketType: 'SIMPLE (Solo Entrada)',
+        entryValidatedAt: fallbackTicket?.entryValidatedAt,
+        entryValidatorName: fallbackTicket?.entryValidatorName,
+        foodValidatedAt: fallbackTicket?.foodValidatedAt,
+        foodValidatorName: fallbackTicket?.foodValidatorName,
+        pricePaid: fallbackTicket?.pricePaid,
+        details: 'El ticket no incluye comida y debe validar el ingreso en puerta.'
+      });
+    } else if (isSimple) {
+      this.validationOverlay.set({
+        type: 'error',
+        title: 'El ticket no incluye comida',
+        buyerName: fallbackTicket?.buyerName,
+        sellerName: fallbackTicket?.sellerName,
+        createdAt: fallbackTicket?.createdAt,
+        ticketType: 'SIMPLE (Solo Entrada)',
+        entryValidatedAt: fallbackTicket?.entryValidatedAt,
+        entryValidatorName: fallbackTicket?.entryValidatorName,
+        foodValidatedAt: fallbackTicket?.foodValidatedAt,
+        foodValidatorName: fallbackTicket?.foodValidatorName,
+        pricePaid: fallbackTicket?.pricePaid,
+        details: 'Este bono es de tipo SIMPLE y no incluye beneficio de comida.'
+      });
+    } else if (notEnteredYet) {
+      this.validationOverlay.set({
+        type: 'warning',
+        title: 'Debe validar el ingreso',
+        buyerName: fallbackTicket?.buyerName,
+        sellerName: fallbackTicket?.sellerName,
+        createdAt: fallbackTicket?.createdAt,
+        ticketType: fallbackTicket?.ticketType === 'CON_COMIDA' ? 'CON COMIDA' : 'SIMPLE (Solo Entrada)',
+        entryValidatedAt: fallbackTicket?.entryValidatedAt,
+        entryValidatorName: fallbackTicket?.entryValidatorName,
+        foodValidatedAt: fallbackTicket?.foodValidatedAt,
+        foodValidatorName: fallbackTicket?.foodValidatorName,
+        pricePaid: fallbackTicket?.pricePaid,
+        details: 'El bono debe registrar primero el ingreso en puerta antes de retirar la comida.'
+      });
+    } else if (foodAlreadyDelivered) {
+      this.validationOverlay.set({
+        type: 'warning',
+        title: 'La comida ya fue entregada',
+        buyerName: fallbackTicket?.buyerName,
+        sellerName: fallbackTicket?.sellerName,
+        createdAt: fallbackTicket?.createdAt,
+        ticketType: 'CON COMIDA',
+        entryValidatedAt: fallbackTicket?.entryValidatedAt,
+        entryValidatorName: fallbackTicket?.entryValidatorName,
+        foodValidatedAt: fallbackTicket?.foodValidatedAt,
+        foodValidatorName: fallbackTicket?.foodValidatorName,
+        pricePaid: fallbackTicket?.pricePaid,
+        details: 'Este bono ya retiró la comida anteriormente.'
+      });
+    } else {
+      this.validationOverlay.set({
+        type: 'error',
+        title: 'La entrada no es válida',
+        details: 'No existe ningún bono registrado con este código o token.'
+      });
+    }
+  }
+
+  private findFallbackAndHandleError(code?: string, token?: string, err?: any): void {
+    if (!code && !token) {
+      this.handleFoodError(err);
       return;
     }
 
-    this.loading.set(true);
     this.apiService.listTickets().subscribe({
       next: (res) => {
-        this.loading.set(false);
         if (res.success && res.data) {
-          const match = res.data.find(t => t.fourDigitCode === code);
-          if (match) {
-            this.selectedTicket.set(match);
-          } else {
-            this.errorMessage.set(`No se encontró ningún bono con el código ${code}.`);
-          }
+          const matched = res.data.find(t =>
+            (code && t.fourDigitCode === code) ||
+            (token && t.publicToken === token)
+          );
+          this.handleFoodError(err, matched);
         } else {
-          this.errorMessage.set(res.message || 'Error al buscar bono.');
+          this.handleFoodError(err);
         }
       },
-      error: (err) => {
-        this.loading.set(false);
-        this.errorMessage.set(err.error?.message || 'Error de servidor al buscar el bono.');
+      error: () => {
+        this.handleFoodError(err);
       }
     });
   }
 
-  searchByToken(): void {
-    this.clearMessages();
-    this.selectedTicket.set(null);
-    this.justValidated.set(false);
-
-    const token = this.qrTokenInput.trim();
-    if (!token) {
-      this.errorMessage.set('Ingrese un token público válido.');
+  searchByCode(): void {
+    const code = this.fourDigitInput.trim();
+    if (code.length !== 4) {
+      this.triggerHaptic(false);
+      this.validationOverlay.set({
+        type: 'error',
+        title: 'La entrada no es válida',
+        details: 'El código debe ser exactamente de 4 dígitos.'
+      });
       return;
     }
 
     this.loading.set(true);
-    this.apiService.getPublicTicket(token).subscribe({
+    this.apiService.validateTicket({
+      four_digit_code: code,
+      validation_type: 'COMIDA'
+    }).subscribe({
       next: (res) => {
         this.loading.set(false);
         if (res.success && res.data) {
-          this.selectedTicket.set(res.data);
+          this.handleFoodSuccess(res.data);
         } else {
-          this.errorMessage.set(res.message || 'Bono no encontrado con ese token.');
+          this.findFallbackAndHandleError(code, undefined, { error: { message: res.message } });
         }
       },
       error: (err) => {
         this.loading.set(false);
-        this.errorMessage.set(err.error?.message || 'Error al obtener el bono por token.');
+        this.findFallbackAndHandleError(code, undefined, err);
+      }
+    });
+  }
+
+  validateFoodDirect(ticket: Ticket): void {
+    this.validating.set(true);
+
+    // Pre-check ticket properties before calling API to give exact title per requirements
+    if (ticket.status === 'ANULADO') {
+      this.validating.set(false);
+      this.handleFoodError({ error: { message: 'anulado' } }, ticket);
+      return;
+    }
+
+    if (ticket.ticketType === 'SIMPLE') {
+      this.validating.set(false);
+      this.handleFoodError({ error: { message: 'simple' } }, ticket);
+      return;
+    }
+
+    if (ticket.status === 'VENDIDO') {
+      this.validating.set(false);
+      this.handleFoodError({ error: { message: 'debe validar ingreso' } }, ticket);
+      return;
+    }
+
+    if (ticket.status === 'USADO_COMIDA') {
+      this.validating.set(false);
+      this.handleFoodError({ error: { message: 'la comida ya fue entregada' } }, ticket);
+      return;
+    }
+
+    this.apiService.validateTicket({
+      four_digit_code: ticket.fourDigitCode,
+      public_token: ticket.publicToken,
+      validation_type: 'COMIDA'
+    }).subscribe({
+      next: (res) => {
+        this.validating.set(false);
+        if (res.success && res.data) {
+          this.handleFoodSuccess(res.data);
+        } else {
+          this.handleFoodError({ error: { message: res.message } }, ticket);
+        }
+      },
+      error: (err) => {
+        this.validating.set(false);
+        this.handleFoodError(err, ticket);
       }
     });
   }
@@ -160,49 +348,6 @@ export class ValidateFoodComponent implements OnDestroy {
 
   selectTicket(t: Ticket): void {
     this.selectedTicket.set(t);
-    this.justValidated.set(false);
-    this.clearMessages();
-  }
-
-  validateFood(): void {
-    const ticket = this.selectedTicket();
-    if (!ticket) return;
-
-    if (ticket.ticketType !== 'CON_COMIDA') {
-      this.errorMessage.set('No se puede entregar. El bono no incluye 1 Choripán.');
-      return;
-    }
-
-    if (ticket.status !== 'USADO_ENTRADA') {
-      this.errorMessage.set('No se puede entregar el choripán. El bono debe haber sido validado previamente en entrada.');
-      return;
-    }
-
-    this.clearMessages();
-    this.validating.set(true);
-
-    this.apiService.validateTicket({
-      four_digit_code: ticket.fourDigitCode,
-      public_token: ticket.publicToken,
-      validation_type: 'COMIDA'
-    }).subscribe({
-      next: (res) => {
-        this.validating.set(false);
-        if (res.success && res.data) {
-          const updatedTicket = res.data;
-          this.justValidated.set(true);
-          this.selectedTicket.set(updatedTicket);
-          this.successMessage.set('¡1 Choripán entregado correctamente!');
-          this.allTickets.update(list => list.map(t => t.id === updatedTicket.id ? updatedTicket : t));
-        } else {
-          this.errorMessage.set(res.message || 'Error al validar la entrega de comida.');
-        }
-      },
-      error: (err) => {
-        this.validating.set(false);
-        this.errorMessage.set(err.error?.message || 'Error al procesar la validación de comida.');
-      }
-    });
   }
 
   startCamera(): void {
@@ -235,7 +380,7 @@ export class ValidateFoodComponent implements OnDestroy {
       })
       .catch((err) => {
         this.cameraActive.set(false);
-        this.cameraError.set('No se pudo acceder a la cámara. Revisa los permisos de tu dispositivo.');
+        this.cameraError.set('No se pudo acceder a la cámara. Revisa los permisos.');
         console.error('Camera access error:', err);
       });
   }
@@ -324,19 +469,38 @@ export class ValidateFoodComponent implements OnDestroy {
 
   private handleScannedCode(rawText: string): void {
     this.stopCamera();
-    let fourDigitCode = rawText;
+    let token = rawText;
+    let fourDigitCode = '';
+
     if (rawText.includes('/')) {
       const parts = rawText.split('/');
-      fourDigitCode = parts.at(-1) || rawText;
+      token = parts.at(-1) || rawText;
     }
 
-    if (fourDigitCode.length === 4 && /^\d{4}$/.test(fourDigitCode)) {
-      this.fourDigitInput = fourDigitCode;
-      this.searchByCode();
-    } else {
-      this.qrTokenInput = rawText;
-      this.searchByToken();
+    if (token.length === 4 && /^\d{4}$/.test(token)) {
+      fourDigitCode = token;
+      token = '';
     }
+
+    this.loading.set(true);
+    this.apiService.validateTicket({
+      four_digit_code: fourDigitCode || undefined,
+      public_token: token || undefined,
+      validation_type: 'COMIDA'
+    }).subscribe({
+      next: (res) => {
+        this.loading.set(false);
+        if (res.success && res.data) {
+          this.handleFoodSuccess(res.data);
+        } else {
+          this.findFallbackAndHandleError(fourDigitCode, token, { error: { message: res.message } });
+        }
+      },
+      error: (err) => {
+        this.loading.set(false);
+        this.findFallbackAndHandleError(fourDigitCode, token, err);
+      }
+    });
   }
 
   stopCamera(): void {
@@ -353,10 +517,10 @@ export class ValidateFoodComponent implements OnDestroy {
 
   getStatusBadgeClass(status: string): string {
     switch (status) {
-      case 'VENDIDO': return 'badge-vendido';
+      case 'VENDIDO': return 'neu-badge-vendido';
       case 'USADO_ENTRADA':
-      case 'USADO_COMIDA': return 'badge-usado';
-      case 'ANULADO': return 'badge-anulado';
+      case 'USADO_COMIDA': return 'neu-badge-usado';
+      case 'ANULADO': return 'neu-badge-anulado';
       default: return '';
     }
   }

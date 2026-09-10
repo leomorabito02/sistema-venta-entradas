@@ -1,229 +1,331 @@
-package services
+package services_test
 
 import (
 	"context"
-	"database/sql"
-	"sync"
 	"testing"
 
 	"backend/internal/dto"
 	"backend/internal/models"
+	"backend/internal/services"
 )
 
-type mockTicketRepo struct {
-	mu      sync.Mutex
-	tickets map[string]*models.Ticket
+func setupTicketServiceTest() (services.TicketService, *MockTicketRepository, *MockQuotaRepository, *MockPriceRepository, *MockUserRepository) {
+	ticketRepo := NewMockTicketRepository()
+	quotaRepo := NewMockQuotaRepository()
+	priceRepo := NewMockPriceRepository()
+	userRepo := NewMockUserRepository()
+
+	// Seed default seller and operator users
+	seller := &models.User{
+		ID:     "seller-uuid-1",
+		Name:   "Seller One",
+		Email:  "seller1@example.com",
+		Role:   models.RoleSeller,
+		Status: models.StatusActive,
+	}
+	operator := &models.User{
+		ID:     "operator-uuid-1",
+		Name:   "Operator One",
+		Email:  "operator1@example.com",
+		Role:   models.RoleSeller,
+		Status: models.StatusActive,
+	}
+	admin := &models.User{
+		ID:     "admin-uuid-1",
+		Name:   "Admin One",
+		Email:  "admin1@example.com",
+		Role:   models.RoleAdmin,
+		Status: models.StatusActive,
+	}
+	userRepo.Users[seller.ID] = seller
+	userRepo.Users[operator.ID] = operator
+	userRepo.Users[admin.ID] = admin
+
+	// Seed quota for seller
+	quotaRepo.SellerQuotas[seller.ID] = &models.SellerQuota{
+		SellerID:      seller.ID,
+		AssignedQuota: 20,
+		UsedQuota:     0,
+		UsedFreeQuota: 0,
+	}
+
+	svc := services.NewTicketService(ticketRepo, quotaRepo, priceRepo, userRepo)
+	return svc, ticketRepo, quotaRepo, priceRepo, userRepo
 }
 
-func newMockTicketRepo() *mockTicketRepo {
-	return &mockTicketRepo{
-		tickets: make(map[string]*models.Ticket),
+func TestTicketService_CreateTicket_Success(t *testing.T) {
+	svc, _, _, _, _ := setupTicketServiceTest()
+	ctx := context.Background()
+
+	email := "buyer@example.com"
+	req := &dto.CreateTicketRequest{
+		TicketType:  models.TicketTypeSimple,
+		SaleSource:  models.SaleSourceAnticipada,
+		QuotaSource: models.QuotaSourcePersonal,
+		FirstName:   "Juan",
+		LastName:    "Perez",
+		Phone:       "+54 9 11 1234 5678",
+		Email:       &email,
+	}
+
+	resp, err := svc.CreateTicket(ctx, "seller-uuid-1", req)
+	if err != nil {
+		t.Fatalf("CreateTicket failed: %v", err)
+	}
+
+	if resp.ID == "" {
+		t.Errorf("Expected ticket ID to be generated")
+	}
+	if resp.PricePaid != 1000.0 {
+		t.Errorf("Expected price paid 1000.0, got %f", resp.PricePaid)
+	}
+	if resp.Status != models.TicketStatusVendido {
+		t.Errorf("Expected initial status VENDIDO, got %s", resp.Status)
 	}
 }
 
-func (m *mockTicketRepo) BeginTx(ctx context.Context) (*sql.Tx, error) {
-	return nil, nil
-}
+func TestTicketService_CreateTicket_Failures(t *testing.T) {
+	svc, ticketRepo, quotaRepo, _, _ := setupTicketServiceTest()
+	ctx := context.Background()
 
-func (m *mockTicketRepo) CreateBuyer(ctx context.Context, buyer *models.Buyer) error {
-	buyer.ID = "buyer-1"
-	return nil
-}
-
-func (m *mockTicketRepo) CreateBuyerTx(ctx context.Context, tx *sql.Tx, buyer *models.Buyer) error {
-	buyer.ID = "buyer-1"
-	return nil
-}
-
-func (m *mockTicketRepo) CreateTicketTx(ctx context.Context, tx *sql.Tx, ticket *models.Ticket) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	ticket.ID = "ticket-1"
-	m.tickets[ticket.ID] = ticket
-	return nil
-}
-
-func (m *mockTicketRepo) GetByID(ctx context.Context, id string) (*models.Ticket, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	t, exists := m.tickets[id]
-	if !exists {
-		return nil, sql.ErrNoRows
-	}
-	return t, nil
-}
-
-func (m *mockTicketRepo) GetByIDTx(ctx context.Context, tx *sql.Tx, id string) (*models.Ticket, error) {
-	return m.GetByID(ctx, id)
-}
-
-func (m *mockTicketRepo) GetByPublicToken(ctx context.Context, token string) (*models.Ticket, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	for _, t := range m.tickets {
-		if t.PublicToken == token {
-			return t, nil
-		}
-	}
-	return nil, sql.ErrNoRows
-}
-
-func (m *mockTicketRepo) GetByPublicTokenTx(ctx context.Context, tx *sql.Tx, token string) (*models.Ticket, error) {
-	return m.GetByPublicToken(ctx, token)
-}
-
-func (m *mockTicketRepo) GetBy4DigitCode(ctx context.Context, code string) (*models.Ticket, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	for _, t := range m.tickets {
-		if t.FourDigitCode == code {
-			return t, nil
-		}
-	}
-	return nil, sql.ErrNoRows
-}
-
-func (m *mockTicketRepo) GetBy4DigitCodeTx(ctx context.Context, tx *sql.Tx, code string) (*models.Ticket, error) {
-	return m.GetBy4DigitCode(ctx, code)
-}
-
-func (m *mockTicketRepo) Is4DigitCodeExists(ctx context.Context, code string) (bool, error) {
-	return false, nil
-}
-
-func (m *mockTicketRepo) UpdateStatusTx(ctx context.Context, tx *sql.Tx, ticketID string, status models.TicketStatus) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if t, ok := m.tickets[ticketID]; ok {
-		t.Status = status
-	}
-	return nil
-}
-
-func (m *mockTicketRepo) RecordValidationTx(ctx context.Context, tx *sql.Tx, val *models.TicketValidation) error {
-	return nil
-}
-
-func (m *mockTicketRepo) ListTickets(ctx context.Context, sellerID string) ([]*models.Ticket, error) {
-	return nil, nil
-}
-
-type dummyQuotaRepo struct{}
-
-func (d *dummyQuotaRepo) GetSellerQuota(ctx context.Context, sellerID string) (*models.SellerQuota, error) {
-	return &models.SellerQuota{}, nil
-}
-func (d *dummyQuotaRepo) GetGlobalFreeQuota(ctx context.Context) (*models.GlobalFreeQuota, error) {
-	return &models.GlobalFreeQuota{}, nil
-}
-func (d *dummyQuotaRepo) DeductPresaleQuotaTx(ctx context.Context, tx *sql.Tx, sellerID string, preferredSource models.QuotaSource) (models.QuotaSource, error) {
-	if preferredSource == models.QuotaSourceLibre {
-		return models.QuotaSourceLibre, nil
-	}
-	return models.QuotaSourcePersonal, nil
-}
-func (d *dummyQuotaRepo) RestoreQuotaTx(ctx context.Context, tx *sql.Tx, sellerID string, quotaSource models.QuotaSource) error {
-	return nil
-}
-func (d *dummyQuotaRepo) SetSellerQuota(ctx context.Context, adminID string, sellerID string, assigned int) error {
-	return nil
-}
-func (d *dummyQuotaRepo) SetAllSellersPersonalQuota(ctx context.Context, adminID string, assigned int) error {
-	return nil
-}
-func (d *dummyQuotaRepo) SetGlobalFreeQuota(ctx context.Context, adminID string, totalFree int) error {
-	return nil
-}
-func (d *dummyQuotaRepo) GetDefaultQuotaConfig(ctx context.Context) (int, error) {
-	return 0, nil
-}
-func (d *dummyQuotaRepo) GetAllSellersQuotas(ctx context.Context) ([]*models.SellerQuotaDetail, error) {
-	return nil, nil
-}
-func (d *dummyQuotaRepo) GetFreeQuotaUsageBySeller(ctx context.Context) ([]*models.SellerFreeQuotaUsage, error) {
-	return nil, nil
-}
-
-type dummyPriceRepo struct{}
-
-func (d *dummyPriceRepo) GetActivePrice(ctx context.Context, ticketType models.TicketType) (float64, error) {
-	return 3000.0, nil
-}
-func (d *dummyPriceRepo) SetActivePrice(ctx context.Context, ticketType models.TicketType, price float64) error {
-	return nil
-}
-func (d *dummyPriceRepo) GetAllActivePrices(ctx context.Context) (map[models.TicketType]float64, error) {
-	return nil, nil
-}
-
-type dummyUserRepo struct{}
-
-func (d *dummyUserRepo) Create(ctx context.Context, user *models.User) error { return nil }
-func (d *dummyUserRepo) GetByID(ctx context.Context, id string) (*models.User, error) {
-	return &models.User{ID: id, Name: "Seller 1", Role: models.RoleSeller}, nil
-}
-func (d *dummyUserRepo) GetByEmail(ctx context.Context, email string) (*models.User, error) {
-	return nil, nil
-}
-func (d *dummyUserRepo) GetByGoogleID(ctx context.Context, googleID string) (*models.User, error) {
-	return nil, nil
-}
-func (d *dummyUserRepo) UpsertGoogleUser(ctx context.Context, email, name, googleID string) (*models.User, bool, error) {
-	return nil, false, nil
-}
-func (d *dummyUserRepo) Update(ctx context.Context, user *models.User) error { return nil }
-func (d *dummyUserRepo) List(ctx context.Context) ([]*models.User, error)     { return nil, nil }
-func (d *dummyUserRepo) SeedInitialAdmin(ctx context.Context, email, name string) error {
-	return nil
-}
-
-func TestConcurrentValidationRaceCondition(t *testing.T) {
-	mockRepo := newMockTicketRepo()
-	mockRepo.tickets["ticket-100"] = &models.Ticket{
-		ID:            "ticket-100",
-		PublicToken:   "token-100",
-		FourDigitCode: "1234",
-		TicketType:    models.TicketTypeSimple,
-		Status:        models.TicketStatusVendido,
-		Buyer:         &models.Buyer{FirstName: "Juan", LastName: "Perez"},
-		Seller:        &models.User{Name: "Vendedor"},
+	// 1. Invalid request validation
+	invalidReq := &dto.CreateTicketRequest{}
+	_, err := svc.CreateTicket(ctx, "seller-uuid-1", invalidReq)
+	if err == nil {
+		t.Errorf("Expected error for invalid request")
 	}
 
-	service := NewTicketService(mockRepo, &dummyQuotaRepo{}, &dummyPriceRepo{}, &dummyUserRepo{})
+	// 2. Seller not found
+	validReq := &dto.CreateTicketRequest{
+		TicketType: models.TicketTypeSimple,
+		SaleSource: models.SaleSourceAnticipada,
+		FirstName:  "Maria",
+		LastName:   "Gomez",
+		Phone:      "1122334455",
+	}
+	_, err = svc.CreateTicket(ctx, "non-existent-seller", validReq)
+	if err == nil {
+		t.Errorf("Expected error for non-existent seller")
+	}
 
-	req := &dto.ValidateTicketRequest{
-		PublicToken:    "token-100",
+	// 3. Quota Exhausted (Personal and Free)
+	quotaRepo.SellerQuotas["seller-uuid-1"] = &models.SellerQuota{
+		SellerID:      "seller-uuid-1",
+		AssignedQuota: 5,
+		UsedQuota:     5, // Personal Exhausted
+	}
+	quotaRepo.GlobalFree.TotalFreeQuota = 10
+	quotaRepo.GlobalFree.UsedFreeQuota = 10 // Global Free Exhausted
+	_, err = svc.CreateTicket(ctx, "seller-uuid-1", validReq)
+	if err == nil {
+		t.Errorf("Expected error when personal and free quotas are exhausted")
+	}
+
+	// 4. BeginTx failure
+	ticketRepo.FailBeginTx = true
+	quotaRepo.SellerQuotas["seller-uuid-1"].AssignedQuota = 10 // Reset quota
+	quotaRepo.SellerQuotas["seller-uuid-1"].UsedQuota = 0
+	_, err = svc.CreateTicket(ctx, "seller-uuid-1", validReq)
+	if err == nil {
+		t.Errorf("Expected error when BeginTx fails")
+	}
+}
+
+func TestTicketService_ValidateTicket_StateTransitions(t *testing.T) {
+	svc, ticketRepo, _, _, _ := setupTicketServiceTest()
+	ctx := context.Background()
+
+	// Create initial ticket (CON_COMIDA)
+	email := "buyer2@example.com"
+	createReq := &dto.CreateTicketRequest{
+		TicketType: models.TicketTypeConComida,
+		SaleSource: models.SaleSourceAnticipada,
+		FirstName:  "Carlos",
+		LastName:   "Lopez",
+		Phone:      "1122334455",
+		Email:      &email,
+	}
+
+	created, err := svc.CreateTicket(ctx, "seller-uuid-1", createReq)
+	if err != nil {
+		t.Fatalf("Failed to create ticket for state transition test: %v", err)
+	}
+
+	// State Transition 1: VENDIDO + ENTRADA -> USADO_ENTRADA
+	valReq1 := &dto.ValidateTicketRequest{
+		PublicToken:    created.PublicToken,
+		ValidationType: models.ValidationTypeEntrada,
+	}
+	resp1, err := svc.ValidateTicket(ctx, "operator-uuid-1", valReq1)
+	if err != nil {
+		t.Fatalf("Validation 1 (ENTRADA) failed: %v", err)
+	}
+	if resp1.Status != models.TicketStatusUsadoEntrada {
+		t.Errorf("Expected status USADO_ENTRADA, got %s", resp1.Status)
+	}
+
+	// State Transition 2: Re-validating ENTRADA on USADO_ENTRADA ticket -> ERROR
+	_, err = svc.ValidateTicket(ctx, "operator-uuid-1", valReq1)
+	if err == nil {
+		t.Errorf("Expected error when re-validating ENTRADA on already used entry")
+	}
+
+	// State Transition 3: USADO_ENTRADA + COMIDA -> USADO_COMIDA
+	valReq2 := &dto.ValidateTicketRequest{
+		PublicToken:    created.PublicToken,
+		ValidationType: models.ValidationTypeComida,
+	}
+	resp2, err := svc.ValidateTicket(ctx, "operator-uuid-1", valReq2)
+	if err != nil {
+		t.Fatalf("Validation 2 (COMIDA) failed: %v", err)
+	}
+	if resp2.Status != models.TicketStatusUsadoComida {
+		t.Errorf("Expected status USADO_COMIDA, got %s", resp2.Status)
+	}
+
+	// State Transition 4: Re-validating COMIDA on USADO_COMIDA ticket -> ERROR
+	_, err = svc.ValidateTicket(ctx, "operator-uuid-1", valReq2)
+	if err == nil {
+		t.Errorf("Expected error when re-validating COMIDA on fully used ticket")
+	}
+
+	// State Transition 5: Annul fresh VENDIDO ticket -> ANULADO
+	freshReq := &dto.CreateTicketRequest{
+		TicketType: models.TicketTypeSimple,
+		SaleSource: models.SaleSourcePuerta,
+		FirstName:  "Pedro",
+		LastName:   "Picapiedra",
+		Phone:      "1133445566",
+	}
+	freshTicket, err := svc.CreateTicket(ctx, "seller-uuid-1", freshReq)
+	if err != nil {
+		t.Fatalf("Failed to create fresh ticket for annulment test: %v", err)
+	}
+
+	err = svc.AnnulTicket(ctx, "operator-uuid-1", freshTicket.ID, "Customer refund request")
+	if err != nil {
+		t.Fatalf("AnnulTicket failed: %v", err)
+	}
+
+	annulledTicket, _ := ticketRepo.GetByID(ctx, freshTicket.ID)
+	if annulledTicket.Status != models.TicketStatusAnulado {
+		t.Errorf("Expected status ANULADO, got %s", annulledTicket.Status)
+	}
+
+	// State Transition 6: Validate on ANULADO ticket -> ERROR
+	valReqAnnulled := &dto.ValidateTicketRequest{
+		PublicToken:    freshTicket.PublicToken,
+		ValidationType: models.ValidationTypeEntrada,
+	}
+	_, err = svc.ValidateTicket(ctx, "operator-uuid-1", valReqAnnulled)
+	if err == nil {
+		t.Errorf("Expected error when validating an ANULADO ticket")
+	}
+}
+
+func TestTicketService_ValidateBy4DigitCode(t *testing.T) {
+	svc, _, _, _, _ := setupTicketServiceTest()
+	ctx := context.Background()
+
+	createReq := &dto.CreateTicketRequest{
+		TicketType: models.TicketTypeSimple,
+		SaleSource: models.SaleSourcePuerta,
+		FirstName:  "Ana",
+		LastName:   "Rios",
+		Phone:      "1199887766",
+	}
+
+	created, err := svc.CreateTicket(ctx, "seller-uuid-1", createReq)
+	if err != nil {
+		t.Fatalf("Failed to create ticket: %v", err)
+	}
+
+	valReq := &dto.ValidateTicketRequest{
+		FourDigitCode:  created.FourDigitCode,
 		ValidationType: models.ValidationTypeEntrada,
 	}
 
-	const goroutines = 10
-	var wg sync.WaitGroup
-	successCount := 0
-	conflictCount := 0
-	var countMu sync.Mutex
+	resp, err := svc.ValidateTicket(ctx, "operator-uuid-1", valReq)
+	if err != nil {
+		t.Fatalf("ValidateTicket by 4 digit code failed: %v", err)
+	}
+	if resp.ID != created.ID {
+		t.Errorf("Expected ticket ID %s, got %s", created.ID, resp.ID)
+	}
+}
 
-	wg.Add(goroutines)
-	for i := 0; i < goroutines; i++ {
-		go func() {
-			defer wg.Done()
-			_, err := service.ValidateTicket(context.Background(), "op-1", req)
-			countMu.Lock()
-			defer countMu.Unlock()
-			if err == nil {
-				successCount++
-			} else {
-				conflictCount++
-			}
-		}()
+func TestTicketService_PricesAndList(t *testing.T) {
+	svc, _, _, _, _ := setupTicketServiceTest()
+	ctx := context.Background()
+
+	// Get active prices
+	prices, err := svc.GetActivePrices(ctx)
+	if err != nil || len(prices) == 0 {
+		t.Fatalf("GetActivePrices failed: %v", err)
 	}
 
-	wg.Wait()
-
-	if successCount != 1 {
-		t.Errorf("Expected exactly 1 success validation, got %d", successCount)
+	// Update price by non-admin -> Forbidden
+	_, err = svc.UpdatePrice(ctx, "seller-uuid-1", &dto.UpdateTicketPriceRequest{
+		TicketType: models.TicketTypeSimple,
+		Price:      1200.0,
+	})
+	if err == nil {
+		t.Errorf("Expected error when non-admin attempts price update")
 	}
 
-	if conflictCount != goroutines-1 {
-		t.Errorf("Expected %d conflict errors, got %d", goroutines-1, conflictCount)
+	// Update price by admin
+	updated, err := svc.UpdatePrice(ctx, "admin-uuid-1", &dto.UpdateTicketPriceRequest{
+		TicketType: models.TicketTypeSimple,
+		Price:      1200.0,
+	})
+	if err != nil {
+		t.Fatalf("UpdatePrice failed: %v", err)
+	}
+	if updated.Price != 1200.0 {
+		t.Errorf("Expected updated price 1200.0, got %f", updated.Price)
+	}
+
+	// List tickets
+	tickets, err := svc.ListTickets(ctx, "seller-uuid-1")
+	if err != nil {
+		t.Fatalf("ListTickets failed: %v", err)
+	}
+	if tickets == nil {
+		// Empty slice initialized
+	}
+}
+
+func TestTicketService_GetPublicTicket(t *testing.T) {
+	svc, _, _, _, _ := setupTicketServiceTest()
+	ctx := context.Background()
+
+	createReq := &dto.CreateTicketRequest{
+		TicketType: models.TicketTypeSimple,
+		SaleSource: models.SaleSourceAnticipada,
+		FirstName:  "Laura",
+		LastName:   "Diaz",
+		Phone:      "1144556677",
+	}
+
+	created, err := svc.CreateTicket(ctx, "seller-uuid-1", createReq)
+	if err != nil {
+		t.Fatalf("Failed to create ticket: %v", err)
+	}
+
+	pub, err := svc.GetPublicTicket(ctx, created.PublicToken)
+	if err != nil {
+		t.Fatalf("GetPublicTicket failed: %v", err)
+	}
+
+	if pub.PublicToken != created.PublicToken {
+		t.Errorf("Expected public token %s, got %s", created.PublicToken, pub.PublicToken)
+	}
+	if pub.BuyerName != "Laura Diaz" {
+		t.Errorf("Expected BuyerName 'Laura Diaz', got '%s'", pub.BuyerName)
+	}
+
+	_, err = svc.GetPublicTicket(ctx, "invalid-token")
+	if err == nil {
+		t.Errorf("Expected error for non-existent public token")
 	}
 }

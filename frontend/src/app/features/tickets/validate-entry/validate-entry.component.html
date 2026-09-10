@@ -1,229 +1,175 @@
 <div class="validate-container">
   <header class="page-header">
-    <h1><svg class="icon" viewBox="0 0 24 24"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><path d="M13 5v2"/><path d="M13 11v2"/><path d="M13 17v2"/></svg> Validar Entrada de Bono</h1>
-    <p class="subtitle">Verifica e ingresa asistentes controlando el estado del bono</p>
+    <h1>
+      <svg class="icon" viewBox="0 0 24 24"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><path d="M13 5v2"/><path d="M13 11v2"/><path d="M13 17v2"/></svg>
+      Validar Entrada
+    </h1>
+    <p class="subtitle">Control de acceso rápido por QR o código de 4 dígitos</p>
   </header>
 
-  <!-- Selection Modes Tabs -->
+  <!-- Mode Tabs -->
   <div class="mode-tabs neu-card">
-    <button
-      [class.active]="activeMode() === 'code'"
-      (click)="switchMode('code')">
-      <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg> Código de 4 Dígitos
+    <button [class.active]="activeMode() === 'code'" (click)="switchMode('code')">
+      <svg class="icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="10" x2="8.01" y2="10"/><line x1="12" y1="10" x2="12.01" y2="10"/><line x1="16" y1="10" x2="16.01" y2="10"/><line x1="8" y1="14" x2="8.01" y2="14"/><line x1="12" y1="14" x2="12.01" y2="14"/><line x1="16" y1="14" x2="16.01" y2="14"/></svg> Código 4 Dígitos
     </button>
-    <button
-      [class.active]="activeMode() === 'qr'"
-      (click)="switchMode('qr')">
-      <svg class="icon" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Escanear QR (Cámara)
+    <button [class.active]="activeMode() === 'qr'" (click)="switchMode('qr')">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Escáner QR
     </button>
-    <button
-      [class.active]="activeMode() === 'search'"
-      (click)="switchMode('search')">
-      <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Buscar por Vendedor y Comprador
+    <button [class.active]="activeMode() === 'search'" (click)="switchMode('search')">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Buscar Nombre
     </button>
   </div>
 
-  <div class="neu-card content-card">
-    <!-- MODE 1: 4-Digit Code -->
-    <div *ngIf="activeMode() === 'code'" class="mode-section">
-      <h3>Ingrese Código de 4 Dígitos</h3>
-      <form (ngSubmit)="searchByCode()" class="search-form">
-        <div class="input-group">
-          <label for="four-digit-input" class="sr-only">Código de 4 Dígitos</label>
-          <input
-            id="four-digit-input"
-            type="text"
-            maxlength="4"
-            pattern="[0-9]{4}"
-            placeholder="Ej: 4821"
-            [(ngModel)]="fourDigitInput"
-            name="fourDigitInput"
-            class="neu-input code-input"
-            required
-          />
-          <button type="submit" [disabled]="loading()" class="neu-btn neu-btn-bordo">
-            <span *ngIf="loading()" class="neu-spinner"></span>
-            <span>Buscar Bono</span>
-          </button>
-        </div>
-      </form>
-    </div>
-
-    <!-- MODE 2: Camera Stream / QR -->
-    <div *ngIf="activeMode() === 'qr'" class="mode-section">
-      <h3>Escanear Código QR con Cámara</h3>
-      <p class="section-desc">Permite el acceso a la cámara para escanear el QR del bono o ingresa el token público manualmente.</p>
-      
-      <div class="camera-wrapper neu-card">
-        <video #videoElement class="video-preview" [class.hidden]="!cameraActive()" autoplay playsinline muted></video>
-        
-        <div *ngIf="!cameraActive()" class="camera-placeholder">
-          <span class="camera-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
-          <p *ngIf="cameraError()" class="error-text">{{ cameraError() }}</p>
-          <button (click)="startCamera()" class="neu-btn neu-btn-bordo">
-            Activar Cámara
-          </button>
-        </div>
-        
-        <div *ngIf="cameraActive()" class="camera-actions">
-          <button (click)="stopCamera()" class="neu-btn btn-danger-sm">
-            Detener Cámara
-          </button>
-        </div>
-      </div>
-
-      <div class="manual-qr-fallback">
-        <label for="qr-token-input">O ingresar Token Público de QR:</label>
-        <div class="input-group">
-          <input
-            id="qr-token-input"
-            type="text"
-            placeholder="Token público..."
-            [(ngModel)]="qrTokenInput"
-            name="qrTokenInput"
-            class="neu-input"
-          />
-          <button (click)="searchByToken()" [disabled]="loading()" class="neu-btn neu-btn-bordo">
-            <span *ngIf="loading()" class="neu-spinner"></span>
-            <span>Buscar por Token</span>
-          </button>
-        </div>
+  <!-- MODE 1: 4-Digit Code with Touch Numpad -->
+  <div *ngIf="activeMode() === 'code'" class="neu-card mode-card">
+    <div class="code-display-wrapper">
+      <span id="codeLabel" class="form-label">Ingrese Código de 4 Dígitos</span>
+      <div class="code-display" aria-labelledby="codeLabel">
+        <span class="code-digit" [class.filled]="fourDigitInput.length > 0">{{ fourDigitInput[0] || '-' }}</span>
+        <span class="code-digit" [class.filled]="fourDigitInput.length > 1">{{ fourDigitInput[1] || '-' }}</span>
+        <span class="code-digit" [class.filled]="fourDigitInput.length > 2">{{ fourDigitInput[2] || '-' }}</span>
+        <span class="code-digit" [class.filled]="fourDigitInput.length > 3">{{ fourDigitInput[3] || '-' }}</span>
       </div>
     </div>
 
-    <!-- MODE 3: Search by Seller & Buyer -->
-    <div *ngIf="activeMode() === 'search'" class="mode-section">
-      <h3>Buscar por Vendedor y Comprador</h3>
-      <div class="search-form-grid">
-        <div class="field">
-          <label for="seller-name-search">Nombre del Vendedor:</label>
-          <input
-            id="seller-name-search"
-            type="text"
-            placeholder="Ej: Juan Pérez"
-            [(ngModel)]="sellerNameSearch"
-            name="sellerNameSearch"
-            (input)="onSearchFilterChange()"
-            class="neu-input"
-          />
+    <!-- Touch Keypad (Numpad) for Mobile -->
+    <div class="numpad-grid">
+      <button (click)="appendDigit('1')" class="numpad-btn">1</button>
+      <button (click)="appendDigit('2')" class="numpad-btn">2</button>
+      <button (click)="appendDigit('3')" class="numpad-btn">3</button>
+      <button (click)="appendDigit('4')" class="numpad-btn">4</button>
+      <button (click)="appendDigit('5')" class="numpad-btn">5</button>
+      <button (click)="appendDigit('6')" class="numpad-btn">6</button>
+      <button (click)="appendDigit('7')" class="numpad-btn">7</button>
+      <button (click)="appendDigit('8')" class="numpad-btn">8</button>
+      <button (click)="appendDigit('9')" class="numpad-btn">9</button>
+      <button (click)="clearDigit()" class="numpad-btn action-btn">C</button>
+      <button (click)="appendDigit('0')" class="numpad-btn">0</button>
+      <button (click)="deleteDigit()" class="numpad-btn action-btn">⌫</button>
+    </div>
+
+    <button (click)="searchByCode()" [disabled]="fourDigitInput.length !== 4 || loading()" class="neu-btn neu-btn-bordo btn-validate-full">
+      <span *ngIf="!loading()">Validar Entrada</span>
+      <span *ngIf="loading()">Verificando...</span>
+    </button>
+  </div>
+
+  <!-- MODE 2: Camera Stream / QR Scan (No manual token search) -->
+  <div *ngIf="activeMode() === 'qr'" class="neu-card mode-card">
+    <div class="camera-wrapper">
+      <video #videoElement class="video-preview" [class.hidden]="!cameraActive()" autoplay playsinline muted></video>
+
+      <div *ngIf="!cameraActive()" class="camera-placeholder">
+        <div class="camera-icon">
+          <svg class="icon" viewBox="0 0 24 24" style="width: 48px; height: 48px;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
         </div>
-        <div class="field">
-          <label for="buyer-name-search">Nombre del Comprador:</label>
-          <input
-            id="buyer-name-search"
-            type="text"
-            placeholder="Ej: María Gómez"
-            [(ngModel)]="buyerNameSearch"
-            name="buyerNameSearch"
-            (input)="onSearchFilterChange()"
-            class="neu-input"
-          />
-        </div>
+        <p *ngIf="cameraError()" class="error-text">{{ cameraError() }}</p>
+        <button (click)="startCamera()" class="neu-btn neu-btn-bordo">
+          Activar Cámara Escáner
+        </button>
       </div>
 
-      <div class="tickets-found-list" *ngIf="filteredTickets().length > 0">
-        <h4>Bonos Encontrados ({{ filteredTickets().length }})</h4>
-        <button type="button" class="ticket-mini-card neu-card" *ngFor="let t of filteredTickets()" (click)="selectTicket(t)">
-          <div class="mini-info">
-            <strong>Bono #{{ t.ticketNumber }} (Cód: {{ t.fourDigitCode }})</strong>
-            <span>Comprador: {{ t.buyerName || 'N/A' }}</span>
-            <span>Vendedor: {{ t.sellerName || 'N/A' }}</span>
-          </div>
+      <div *ngIf="cameraActive()" class="camera-actions">
+        <button (click)="stopCamera()" class="neu-btn btn-danger-sm">
+          Detener Cámara
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODE 3: Search by Seller & Buyer -->
+  <div *ngIf="activeMode() === 'search'" class="neu-card mode-card">
+    <div class="search-form-grid">
+      <div class="field">
+        <label for="entrySellerSearch">Nombre del Vendedor:</label>
+        <input id="entrySellerSearch" type="text" [(ngModel)]="sellerNameSearch" (input)="onSearchFilterChange()" class="neu-input" placeholder="Ej: Pedro" />
+      </div>
+      <div class="field">
+        <label for="entryBuyerSearch">Nombre del Comprador:</label>
+        <input id="entryBuyerSearch" type="text" [(ngModel)]="buyerNameSearch" (input)="onSearchFilterChange()" class="neu-input" placeholder="Ej: Maria" />
+      </div>
+    </div>
+
+    <div *ngIf="filteredTickets().length > 0" class="search-results-list">
+      <button *ngFor="let t of filteredTickets()" class="ticket-search-item neu-card" (click)="selectTicket(t)" type="button">
+        <div class="item-header">
+          <span class="item-buyer">{{ t.buyerName }}</span>
           <span class="neu-badge" [ngClass]="getStatusBadgeClass(t.status)">{{ formatStatus(t.status) }}</span>
+        </div>
+        <div class="item-details">
+          <span>Código: <strong>{{ t.fourDigitCode }}</strong></span>
+          <span>Vendedor: {{ t.sellerName }}</span>
+        </div>
+        <button *ngIf="t.status === 'VENDIDO'" (click)="$event.stopPropagation(); validateTicketDirect(t)" class="neu-btn neu-btn-bordo btn-item-validate">
+          Ingresar Asistente
         </button>
-      </div>
-      <div *ngIf="isSearching() && filteredTickets().length === 0" class="no-results">
-        No se encontraron bonos que coincidan con la búsqueda.
-      </div>
+      </button>
     </div>
+  </div>
 
-    <!-- Feedback Alert Messages -->
-    <div *ngIf="errorMessage()" class="alert alert-error">
-      <svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {{ errorMessage() }}
-    </div>
-    <div *ngIf="successMessage()" class="alert alert-success">
-      <svg class="icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> {{ successMessage() }}
-    </div>
-
-    <!-- TICKET DETAIL CARD FOR VALIDATION -->
-    <div *ngIf="selectedTicket() as ticket" class="ticket-detail-card neu-card">
-      <div class="card-header">
-        <h2>Bono #{{ ticket.ticketNumber }}</h2>
-        <span class="neu-badge" [ngClass]="getStatusBadgeClass(ticket.status)">
-          {{ formatStatus(ticket.status) }}
-        </span>
+  <!-- INSTANT FULL-SCREEN VALIDATION OVERLAY MODAL (NO SCROLL NEEDED) -->
+  <div *ngIf="validationOverlay()" class="validation-overlay-backdrop" (click)="dismissOverlay()" (keydown.escape)="dismissOverlay()" tabindex="-1">
+    <div class="validation-overlay-card" [ngClass]="validationOverlay()?.type" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
+      <div class="validation-overlay-icon">
+        <svg *ngIf="validationOverlay()?.type === 'success' || validationOverlay()?.type === 'food-success'" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        <svg *ngIf="validationOverlay()?.type === 'error'" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+        <svg *ngIf="validationOverlay()?.type === 'warning'" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
       </div>
 
-      <div class="details-grid">
-        <div class="detail-item">
-          <span class="label">Código 4 Dígitos:</span>
-          <span class="value code-val">{{ ticket.fourDigitCode }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">Comprador:</span>
-          <span class="value">{{ ticket.buyerName || 'No especificado' }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">Vendedor:</span>
-          <span class="value">{{ ticket.sellerName || 'No especificado' }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">Tipo de Bono:</span>
-          <span class="value">{{ formatType(ticket.ticketType) }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">Origen Venta:</span>
-          <span class="value">{{ ticket.saleSource }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">Monto Pagado:</span>
-          <span class="value">${{ ticket.pricePaid }}</span>
-        </div>
-        <div class="detail-item" *ngIf="ticket.entryValidatedAt">
-          <span class="label">Entrada Validada:</span>
-          <span class="value">
-            {{ ticket.entryValidatedAt | date:'dd/MM/yyyy HH:mm' }} hs
-            <span *ngIf="ticket.entryValidatorName"> por {{ ticket.entryValidatorName }}</span>
-          </span>
-        </div>
-      </div>
+      <h2 class="validation-overlay-title">{{ validationOverlay()?.title }}</h2>
 
-      <!-- VALIDATION STATUS ELIGIBILITY RULES -->
-      <div class="validation-rules-notice">
-        <div *ngIf="ticket.status === 'ANULADO'" class="rule-banner alert-error">
-          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> <strong>BONO ANULADO:</strong> Este bono ha sido anulado. No es posible validar la entrada.
+      <!-- Detalle del Bono -->
+      <div *ngIf="validationOverlay()?.buyerName || validationOverlay()?.sellerName || validationOverlay()?.pricePaid !== undefined" class="overlay-ticket-details">
+        <div class="detail-row" *ngIf="validationOverlay()?.buyerName">
+          <span class="d-label">Comprador:</span>
+          <strong class="d-val">{{ validationOverlay()?.buyerName }}</strong>
         </div>
-        
-        <div *ngIf="!justValidated() && (ticket.status === 'USADO_ENTRADA' || ticket.status === 'USADO_COMIDA')" class="rule-banner alert-warning">
-          <svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> <strong>BONO YA USADO:</strong> El estado actual es <code>{{ formatStatus(ticket.status) }}</code>.
-          <span *ngIf="ticket.entryValidatedAt">
-            Validado el <strong>{{ ticket.entryValidatedAt | date:'dd/MM/yyyy HH:mm' }} hs</strong>
-            <span *ngIf="ticket.entryValidatorName"> por <strong>{{ ticket.entryValidatorName }}</strong></span>.
-          </span>
-          <span *ngIf="!ticket.entryValidatedAt">Este bono ya fue utilizado previamente.</span>
+        <div class="detail-row" *ngIf="validationOverlay()?.sellerName">
+          <span class="d-label">Vendedor:</span>
+          <span class="d-val">{{ validationOverlay()?.sellerName }}</span>
         </div>
-
-        <div *ngIf="ticket.status === 'VENDIDO'" class="rule-banner alert-info">
-          <svg class="icon" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> <strong>BONO VÁLIDO:</strong> El bono está en estado <code>VENDIDO</code>. Listo para validar acceso.
+        <div class="detail-row" *ngIf="validationOverlay()?.ticketType">
+          <span class="d-label">Tipo de Bono:</span>
+          <span class="d-val">{{ validationOverlay()?.ticketType }}</span>
+        </div>
+        <div class="detail-row" *ngIf="validationOverlay()?.pricePaid !== undefined">
+          <span class="d-label">Precio del Bono:</span>
+          <strong class="d-val">${{ validationOverlay()?.pricePaid | number:'1.2-2' }}</strong>
+        </div>
+        <div class="detail-row" *ngIf="validationOverlay()?.createdAt">
+          <span class="d-label">Fecha de Compra:</span>
+          <span class="d-val">{{ validationOverlay()?.createdAt | date:'dd/MM/yyyy HH:mm' }} hs</span>
+        </div>
+        <div class="detail-row" *ngIf="validationOverlay()?.entryValidatedAt">
+          <span class="d-label">Hora de Ingreso:</span>
+          <strong class="d-val">
+            {{ validationOverlay()?.entryValidatedAt | date:'dd/MM/yyyy HH:mm' }} hs
+            <span *ngIf="validationOverlay()?.entryValidatorName"> (por {{ validationOverlay()?.entryValidatorName }})</span>
+          </strong>
+        </div>
+        <div class="detail-row" *ngIf="validationOverlay()?.foodValidatedAt">
+          <span class="d-label">Hora Retiro Comida:</span>
+          <strong class="d-val">
+            {{ validationOverlay()?.foodValidatedAt | date:'dd/MM/yyyy HH:mm' }} hs
+            <span *ngIf="validationOverlay()?.foodValidatorName"> (por {{ validationOverlay()?.foodValidatorName }})</span>
+          </strong>
         </div>
       </div>
 
-      <!-- ACTIONS -->
-      <div class="card-actions">
-        <button
-          *ngIf="ticket.status === 'VENDIDO'"
-          (click)="validateEntry()"
-          [disabled]="validating()"
-          class="neu-btn neu-btn-bordo btn-validate">
-          <span *ngIf="validating()" class="neu-spinner"></span>
-          <span>{{ validating() ? 'Validando...' : 'Confirmar y Validar Entrada' }}</span>
-        </button>
-        
-        <button (click)="clearSelection()" class="neu-btn">
-          Limpiar
-        </button>
-      </div>
+      <p *ngIf="validationOverlay()?.details" class="validation-overlay-details">{{ validationOverlay()?.details }}</p>
+
+      <button (click)="dismissOverlay()" class="validation-overlay-btn">
+        Siguiente Persona
+      </button>
     </div>
   </div>
 </div>
-

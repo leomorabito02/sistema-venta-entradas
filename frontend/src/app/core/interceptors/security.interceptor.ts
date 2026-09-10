@@ -58,12 +58,19 @@ export const securityInterceptor: HttpInterceptorFn = (
         errorMsg = error.error;
       }
 
-      if (error.status >= 500) {
-        toastService.error('Error de Servidor', errorMsg);
-      } else if (error.status === 403) {
-        toastService.error('Acceso Denegado (403)', 'No tienes permisos suficientes para realizar esta acción.');
-      } else if (error.status === 400 || error.status === 409 || error.status === 422) {
-        toastService.error('Error de Solicitud', errorMsg);
+      const skipToast =
+        req.headers.has('X-Skip-Toast') ||
+        req.url?.includes('/validate') ||
+        error.url?.includes('/validate');
+
+      if (!skipToast) {
+        if (error.status >= 500) {
+          toastService.error('Error de Servidor', errorMsg);
+        } else if (error.status === 403) {
+          toastService.error('Acceso Denegado (403)', 'No tienes permisos suficientes para realizar esta acción.');
+        } else if (error.status === 400 || error.status === 409 || error.status === 422) {
+          toastService.error('Error de Solicitud', errorMsg);
+        }
       }
 
       return throwError(() => error);

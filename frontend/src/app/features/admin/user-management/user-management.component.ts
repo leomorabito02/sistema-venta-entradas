@@ -24,11 +24,14 @@ export class UserManagementComponent implements OnInit {
   loadingQuota = signal<boolean>(false);
 
   defaultQuotaInput = 0;
+  defaultFreeQuotaInput = 5;
   freeQuotaInput = 0;
   savingDefaultQuota = false;
+  savingDefaultFreeQuota = false;
   savingFreeQuota = false;
 
   sellerQuotaInputs: { [sellerId: string]: number } = {};
+  sellerFreeQuotaInputs: { [sellerId: string]: number } = {};
   savingSellerQuotaId = signal<string | null>(null);
 
   message = '';
@@ -66,10 +69,12 @@ export class UserManagementComponent implements OnInit {
         if (res.success && res.data) {
           this.quotaOverview.set(res.data);
           this.defaultQuotaInput = res.data.default_personal_quota;
-          this.freeQuotaInput = res.data.global_free_quota.total_free_quota;
+          this.defaultFreeQuotaInput = res.data.default_free_quota ?? 5;
+          this.freeQuotaInput = res.data.global_free_quota?.total_free_quota ?? 5;
 
           res.data.sellers_quotas.forEach(s => {
             this.sellerQuotaInputs[s.seller_id] = s.assigned_quota;
+            this.sellerFreeQuotaInputs[s.seller_id] = s.assigned_free_quota ?? 5;
           });
         }
       },
@@ -84,17 +89,36 @@ export class UserManagementComponent implements OnInit {
     if (this.defaultQuotaInput < 0) return;
     this.savingDefaultQuota = true;
 
-    this.apiService.updateDefaultQuotaConfig(this.defaultQuotaInput).subscribe({
+    this.apiService.updateDefaultQuotaConfig({ default_personal_quota: this.defaultQuotaInput }).subscribe({
       next: (res) => {
         this.savingDefaultQuota = false;
         if (res.success) {
-          this.showMessage('Cuota inicial por defecto actualizada para todos los usuarios', 'success');
+          this.showMessage('Cuota personal inicial por defecto actualizada', 'success');
           this.loadQuotaOverview();
         }
       },
       error: (err) => {
         this.savingDefaultQuota = false;
-        this.showMessage(err.error?.error || 'Error al actualizar cuota por defecto', 'danger');
+        this.showMessage(err.error?.error || 'Error al actualizar cuota personal por defecto', 'danger');
+      }
+    });
+  }
+
+  saveDefaultFreeQuota(): void {
+    if (this.defaultFreeQuotaInput < 0) return;
+    this.savingDefaultFreeQuota = true;
+
+    this.apiService.updateDefaultQuotaConfig({ default_free_quota: this.defaultFreeQuotaInput }).subscribe({
+      next: (res) => {
+        this.savingDefaultFreeQuota = false;
+        if (res.success) {
+          this.showMessage('Cuota libre inicial por defecto actualizada', 'success');
+          this.loadQuotaOverview();
+        }
+      },
+      error: (err) => {
+        this.savingDefaultFreeQuota = false;
+        this.showMessage(err.error?.error || 'Error al actualizar cuota libre por defecto', 'danger');
       }
     });
   }
@@ -107,13 +131,13 @@ export class UserManagementComponent implements OnInit {
       next: (res) => {
         this.savingFreeQuota = false;
         if (res.success) {
-          this.showMessage('Bolsón de cuota libre global actualizado', 'success');
+          this.showMessage('Cuota libre por defecto asignada a todos los usuarios', 'success');
           this.loadQuotaOverview();
         }
       },
       error: (err) => {
         this.savingFreeQuota = false;
-        this.showMessage(err.error?.error || 'Error al actualizar cuota libre global', 'danger');
+        this.showMessage(err.error?.error || 'Error al actualizar cuota libre general', 'danger');
       }
     });
   }
@@ -135,6 +159,27 @@ export class UserManagementComponent implements OnInit {
       error: (err) => {
         this.savingSellerQuotaId.set(null);
         this.showMessage(err.error?.error || 'Error al actualizar cuota del vendedor', 'danger');
+      }
+    });
+  }
+
+  saveSellerFreeQuota(sellerId: string): void {
+    const val = this.sellerFreeQuotaInputs[sellerId];
+    if (val === undefined || val < 0) return;
+
+    this.savingSellerQuotaId.set(sellerId);
+
+    this.apiService.updateQuota({ quota_type: 'FREE', seller_id: sellerId, assigned_quota: val }).subscribe({
+      next: (res) => {
+        this.savingSellerQuotaId.set(null);
+        if (res.success) {
+          this.showMessage('Cuota libre del vendedor actualizada correctamente', 'success');
+          this.loadQuotaOverview();
+        }
+      },
+      error: (err) => {
+        this.savingSellerQuotaId.set(null);
+        this.showMessage(err.error?.error || 'Error al actualizar cuota libre del vendedor', 'danger');
       }
     });
   }

@@ -1,6 +1,16 @@
-<app-navbar></app-navbar>
-<main class="main-content">
-  <router-outlet></router-outlet>
-</main>
-<app-footer></app-footer>
-<app-toast-container></app-toast-container>
+<div [class.has-bottom-nav]="authService.isAuthenticated()">
+  <app-navbar></app-navbar>
+  <main class="main-content">
+    <router-outlet></router-outlet>
+  </main>
+  <app-footer></app-footer>
+  <app-toast-container></app-toast-container>
+
+  <!-- Mobile Bottom Dock & Quick Sale Drawer -->
+  <app-bottom-nav (openQuickSale)="openQuickSaleDrawer()"></app-bottom-nav>
+  <app-quick-sale-drawer 
+    [isOpen]="quickSaleService.isOpen()" 
+    (closeDrawer)="closeQuickSaleDrawer()"
+    (ticketCreated)="onTicketCreated()">
+  </app-quick-sale-drawer>
+</div>

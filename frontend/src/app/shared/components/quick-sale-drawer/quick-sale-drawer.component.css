@@ -1,0 +1,240 @@
+.drawer-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 9500;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.drawer-content {
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--bg-cream-card);
+  border-top-left-radius: 28px;
+  border-top-right-radius: 28px;
+  padding: 1.25rem 1.5rem 2.5rem;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.25);
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  padding-bottom: calc(2rem + var(--safe-area-bottom));
+}
+
+.drawer-header {
+  position: relative;
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.drag-handle {
+  width: 40px;
+  height: 5px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+  margin: 0 auto 0.75rem;
+}
+
+.drawer-title {
+  font-size: 1.3rem;
+}
+
+.btn-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: none;
+  border: none;
+  font-size: 1.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.drawer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.quota-summary-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  padding: 0.75rem 0.9rem;
+  background: var(--bg-cream-base, #F7F3EB);
+  border-radius: var(--radius-sm, 12px);
+  box-shadow: var(--neu-shadow-inset);
+  border: 1px solid var(--color-bordo-light, rgba(122, 0, 30, 0.15));
+}
+
+.quota-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.q-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+}
+
+.q-val {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--color-bordo, #7A001E);
+}
+
+.q-val.danger {
+  color: #DC2626;
+}
+
+.form-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.form-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.phone-input-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.country-select {
+  width: 125px;
+  min-width: 125px;
+  padding: 0.6rem 0.5rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm, 8px);
+  background: var(--bg-cream-base, #F7F3EB);
+  border: 1px solid var(--color-bordo-light, rgba(122, 0, 30, 0.2));
+  color: var(--color-bordo, #7A001E);
+  box-shadow: var(--neu-shadow-inset);
+  cursor: pointer;
+}
+
+.phone-number-input {
+  flex: 1;
+  font-family: inherit;
+  letter-spacing: 0.05em;
+}
+
+.btn-submit {
+  width: 100%;
+  margin-top: 0.5rem;
+  font-size: 1.05rem;
+}
+
+/* Success View Styles */
+.success-view {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.success-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #065F46;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+
+.success-icon svg {
+  width: 36px;
+  height: 36px;
+}
+
+.buyer-name {
+  font-size: 1.3rem;
+  margin-bottom: 0.75rem;
+}
+
+.code-badge {
+  background: var(--bg-cream-dark);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--neu-shadow-inset);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.code-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.code-value {
+  font-size: 2.2rem;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  color: var(--color-bordo);
+}
+
+.success-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.btn-whatsapp {
+  background: #075E54;
+  color: #FFFFFF !important;
+  border: none;
+  font-size: 1rem;
+}
+
+.btn-copy-link {
+  background: #FFFFFF;
+  color: var(--color-bordo) !important;
+  border: 1.5px solid var(--color-bordo);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.w-icon {
+  width: 22px;
+  height: 22px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}

@@ -78,9 +78,16 @@ func (c *QuotaController) UpdateQuota(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	case "FREE":
-		if err := c.quotaService.SetGlobalFreeQuota(r.Context(), adminID, req.AssignedQuota); err != nil {
-			c.jsonView.Error(w, 0, "", err)
-			return
+		if req.SellerID != nil && *req.SellerID != "" && *req.SellerID != "ALL" {
+			if err := c.quotaService.SetSellerFreeQuota(r.Context(), adminID, *req.SellerID, req.AssignedQuota); err != nil {
+				c.jsonView.Error(w, 0, "", err)
+				return
+			}
+		} else {
+			if err := c.quotaService.SetGlobalFreeQuota(r.Context(), adminID, req.AssignedQuota); err != nil {
+				c.jsonView.Error(w, 0, "", err)
+				return
+			}
 		}
 	}
 
@@ -113,7 +120,7 @@ func (c *QuotaController) UpdateDefaultQuotaConfig(w http.ResponseWriter, r *htt
 		return
 	}
 
-	if err := c.quotaService.UpdateDefaultQuotaConfig(r.Context(), adminID, req.DefaultPersonalQuota); err != nil {
+	if err := c.quotaService.UpdateDefaultQuotaConfig(r.Context(), adminID, &req); err != nil {
 		c.jsonView.Error(w, 0, "", err)
 		return
 	}

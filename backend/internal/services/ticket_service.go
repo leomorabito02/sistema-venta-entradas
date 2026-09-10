@@ -99,13 +99,18 @@ func (s *ticketService) CreateTicket(ctx context.Context, sellerID string, req *
 		return nil, err
 	}
 
+	finalPricePaid := pricePaid
+	if quotaSource == models.QuotaSourceLibre {
+		finalPricePaid = 0.0
+	}
+
 	ticket := &models.Ticket{
 		PublicToken:   publicToken,
 		FourDigitCode: fourDigitCode,
 		TicketType:    req.TicketType,
 		SaleSource:    req.SaleSource,
 		QuotaSource:   quotaSource,
-		PricePaid:     pricePaid,
+		PricePaid:     finalPricePaid,
 		Status:        models.TicketStatusVendido,
 		BuyerID:       buyer.ID,
 		SellerID:      sellerID,

@@ -1,0 +1,7 @@
+[[allowlists]]
+description = "Documentación con credenciales ficticias"
+
+paths = [
+  '''docs/$''',
+ 
+]

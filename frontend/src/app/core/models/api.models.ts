@@ -73,6 +73,12 @@ export interface Ticket {
   createdAt?: string;
   sellerName?: string;
   buyerName?: string;
+  buyer?: {
+    first_name: string;
+    last_name: string;
+    phone?: string;
+    email?: string;
+  };
   entryValidatedAt?: string;
   entryValidatorName?: string;
   foodValidatedAt?: string;
@@ -130,7 +136,9 @@ export interface QuotaSummary {
   assigned_quota?: number;
   used_quota?: number;
   available_quota?: number;
+  assigned_free_quota?: number;
   used_free_quota?: number;
+  available_free_quota?: number;
   total_free_quota?: number;
   // Legacy alias fields
   sellerId?: string;
@@ -156,8 +164,11 @@ export interface SellerQuotaDetail {
   assigned_quota: number;
   used_quota: number;
   remaining_personal: number;
+  assigned_free_quota: number;
   used_free_quota: number;
+  remaining_free: number;
   is_personal_exhausted: boolean;
+  is_free_exhausted: boolean;
   updated_at?: string;
 }
 
@@ -165,19 +176,24 @@ export interface SellerFreeQuotaUsage {
   seller_id: string;
   seller_name: string;
   seller_email: string;
+  assigned_free_quota: number;
   used_free_quota: number;
+  remaining_free: number;
 }
 
 export interface DefaultQuotaConfigResponse {
   default_personal_quota: number;
+  default_free_quota: number;
 }
 
 export interface UpdateDefaultQuotaRequest {
-  default_personal_quota: number;
+  default_personal_quota?: number;
+  default_free_quota?: number;
 }
 
 export interface AdminQuotaOverviewResponse {
   default_personal_quota: number;
+  default_free_quota: number;
   global_free_quota: {
     total_free_quota: number;
     used_free_quota: number;

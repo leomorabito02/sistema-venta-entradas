@@ -228,14 +228,63 @@
   padding: 0.9rem;
 }
 
+.wallet-ticket-pass {
+  position: relative;
+  overflow: hidden;
+  border: 2px solid var(--color-gold, #D4AF37);
+  box-shadow: 0 10px 30px rgba(122, 0, 30, 0.12), var(--neu-shadow-flat);
+}
+
+.wallet-title {
+  font-family: var(--font-heading, 'Cinzel', serif);
+  font-size: 1.6rem;
+  color: var(--color-bordo, #7A001E);
+  margin: 0;
+  letter-spacing: 0.04em;
+}
+
+.ticket-stub-divider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 1.75rem -2rem;
+  height: 20px;
+}
+
+.stub-line {
+  flex: 1;
+  border-bottom: 2px dashed rgba(122, 0, 30, 0.25);
+}
+
+.stub-notch {
+  width: 20px;
+  height: 20px;
+  background-color: var(--bg-cream-base, #F7F3EB);
+  border-radius: 50%;
+  box-shadow: inset 2px 0 3px rgba(0,0,0,0.1);
+}
+
+.stub-notch.left {
+  margin-left: -10px;
+}
+
+.stub-notch.right {
+  margin-right: -10px;
+  box-shadow: inset -2px 0 3px rgba(0,0,0,0.1);
+}
+
 @media (max-width: 600px) {
   .public-ticket-container {
     padding: 0.5rem;
-    margin: 0.5rem auto;
+    margin: 0.5rem auto 5rem auto;
   }
 
   .ticket-card {
-    padding: 1.25rem 0.9rem;
+    padding: 1.25rem 1rem;
+  }
+
+  .ticket-stub-divider {
+    margin: 1.25rem -1rem;
   }
 
   .ticket-header-banner {
@@ -251,19 +300,19 @@
   }
 
   .four-code {
-    font-size: 2.6rem;
-    letter-spacing: 0.2em;
+    font-size: 2.8rem;
+    letter-spacing: 0.25em;
   }
 
   .qr-box {
-    width: 220px;
-    height: 220px;
+    width: 210px;
+    height: 210px;
     margin: 0 auto;
   }
 
   .qr-code-img {
-    width: 180px;
-    height: 180px;
+    width: 175px;
+    height: 175px;
   }
 
   .info-grid {

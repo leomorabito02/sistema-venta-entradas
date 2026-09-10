@@ -1,0 +1,88 @@
+/* Display bottom dock only on mobile screens */
+.bottom-dock {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .bottom-dock {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(68px + var(--safe-area-bottom));
+    padding-bottom: var(--safe-area-bottom);
+    background: rgba(244, 239, 230, 0.94);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+    z-index: 9000;
+    align-items: center;
+    justify-content: space-around;
+  }
+
+  .dock-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    height: 100%;
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    font-weight: 600;
+    transition: color 0.15s ease;
+  }
+
+  .dock-item.active {
+    color: var(--color-bordo);
+    font-weight: 800;
+  }
+
+  .icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 28px;
+  }
+
+  .dock-icon {
+    width: 22px;
+    height: 22px;
+    transition: transform 0.2s ease;
+  }
+
+  .dock-item.active .dock-icon {
+    transform: translateY(-1px) scale(1.1);
+  }
+
+  .dock-fab {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-bordo), #5C0016);
+    color: #FFFFFF;
+    border: 2px solid var(--color-gold);
+    box-shadow: 0 6px 16px rgba(122, 0, 30, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-top: -24px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    touch-action: manipulation;
+  }
+
+  .dock-fab:active {
+    transform: scale(0.92);
+    box-shadow: 0 2px 8px rgba(122, 0, 30, 0.5);
+  }
+
+  .fab-icon {
+    width: 26px;
+    height: 26px;
+  }
+}
