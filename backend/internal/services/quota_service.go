@@ -13,9 +13,10 @@ type QuotaService interface {
 	GetGlobalFreeQuotaSummary(ctx context.Context) (*dto.GlobalFreeQuotaResponse, error)
 	SetSellerQuota(ctx context.Context, adminID string, sellerID string, assigned int) error
 	SetAllSellersPersonalQuota(ctx context.Context, adminID string, assigned int) error
+	SetSellerFreeQuota(ctx context.Context, adminID string, sellerID string, assigned int) error
 	SetGlobalFreeQuota(ctx context.Context, adminID string, totalFree int) error
 	GetDefaultQuotaConfig(ctx context.Context) (*dto.DefaultQuotaConfigResponse, error)
-	UpdateDefaultQuotaConfig(ctx context.Context, adminID string, defaultQuota int) error
+	UpdateDefaultQuotaConfig(ctx context.Context, adminID string, req *dto.UpdateDefaultQuotaRequest) error
 	GetAdminQuotaOverview(ctx context.Context) (*dto.AdminQuotaOverviewResponse, error)
 	GetExhaustedSellers(ctx context.Context) ([]*models.SellerQuotaDetail, error)
 }
@@ -52,13 +53,20 @@ func (s *quotaService) GetSellerQuotaSummary(ctx context.Context, sellerID strin
 		available = 0
 	}
 
+	availableFree := q.AssignedFreeQuota - q.UsedFreeQuota
+	if availableFree < 0 {
+		availableFree = 0
+	}
+
 	return &dto.SellerQuotaSummaryResponse{
-		SellerID:       sellerID,
-		SellerName:     u.Name,
-		AssignedQuota:  q.AssignedQuota,
-		UsedQuota:      q.UsedQuota,
-		AvailableQuota: available,
-		UsedFreeQuota:  q.UsedFreeQuota,
+		SellerID:           sellerID,
+		SellerName:         u.Name,
+		AssignedQuota:      q.AssignedQuota,
+		UsedQuota:          q.UsedQuota,
+		AvailableQuota:     available,
+		AssignedFreeQuota:  q.AssignedFreeQuota,
+		UsedFreeQuota:      q.UsedFreeQuota,
+		AvailableFreeQuota: availableFree,
 	}, nil
 }
 
@@ -90,6 +98,16 @@ func (s *quotaService) SetSellerQuota(ctx context.Context, adminID string, selle
 	return s.quotaRepo.SetSellerQuota(ctx, adminID, sellerID, assigned)
 }
 
+func (s *quotaService) SetSellerFreeQuota(ctx context.Context, adminID string, sellerID string, assigned int) error {
+	if sellerID == "" {
+		return models.NewBadRequestError("Seller ID is required", nil)
+	}
+	if assigned < 0 {
+		return models.NewBadRequestError("Assigned free quota must be non-negative (>= 0)", nil)
+	}
+	return s.quotaRepo.SetSellerFreeQuota(ctx, adminID, sellerID, assigned)
+}
+
 func (s *quotaService) SetAllSellersPersonalQuota(ctx context.Context, adminID string, assigned int) error {
 	if assigned < 0 {
 		return models.NewBadRequestError("Assigned quota must be non-negative (>= 0)", nil)
@@ -101,26 +119,42 @@ func (s *quotaService) SetGlobalFreeQuota(ctx context.Context, adminID string, t
 	if totalFree < 0 {
 		return models.NewBadRequestError("Total free quota must be non-negative (>= 0)", nil)
 	}
-	return s.quotaRepo.SetGlobalFreeQuota(ctx, adminID, totalFree)
+	return s.quotaRepo.SetAllSellersFreeQuota(ctx, adminID, totalFree)
 }
 
 func (s *quotaService) GetDefaultQuotaConfig(ctx context.Context) (*dto.DefaultQuotaConfigResponse, error) {
-	val, err := s.quotaRepo.GetDefaultQuotaConfig(ctx)
+	cfg, err := s.quotaRepo.GetDefaultQuotaConfig(ctx)
 	if err != nil {
 		return nil, models.NewInternalError("Failed to fetch default quota config", err)
 	}
-	return &dto.DefaultQuotaConfigResponse{DefaultPersonalQuota: val}, nil
+	return &dto.DefaultQuotaConfigResponse{
+		DefaultPersonalQuota: cfg.DefaultPersonalQuota,
+		DefaultFreeQuota:     cfg.DefaultFreeQuota,
+	}, nil
 }
 
-func (s *quotaService) UpdateDefaultQuotaConfig(ctx context.Context, adminID string, defaultQuota int) error {
-	if defaultQuota < 0 {
-		return models.NewBadRequestError("Default quota must be non-negative (>= 0)", nil)
+func (s *quotaService) UpdateDefaultQuotaConfig(ctx context.Context, adminID string, req *dto.UpdateDefaultQuotaRequest) error {
+	if req == nil {
+		return models.NewBadRequestError("Invalid request payload", nil)
 	}
-	return s.quotaRepo.SetAllSellersPersonalQuota(ctx, adminID, defaultQuota)
+	if err := req.Validate(); err != nil {
+		return models.NewBadRequestError(err.Error(), err)
+	}
+	if req.DefaultPersonalQuota != nil {
+		if err := s.quotaRepo.SetAllSellersPersonalQuota(ctx, adminID, *req.DefaultPersonalQuota); err != nil {
+			return err
+		}
+	}
+	if req.DefaultFreeQuota != nil {
+		if err := s.quotaRepo.SetAllSellersFreeQuota(ctx, adminID, *req.DefaultFreeQuota); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *quotaService) GetAdminQuotaOverview(ctx context.Context) (*dto.AdminQuotaOverviewResponse, error) {
-	defaultQuota, err := s.quotaRepo.GetDefaultQuotaConfig(ctx)
+	defaultCfg, err := s.quotaRepo.GetDefaultQuotaConfig(ctx)
 	if err != nil {
 		return nil, models.NewInternalError("Failed to fetch default quota config", err)
 	}
@@ -148,7 +182,8 @@ func (s *quotaService) GetAdminQuotaOverview(ctx context.Context) (*dto.AdminQuo
 	}
 
 	return &dto.AdminQuotaOverviewResponse{
-		DefaultPersonalQuota:   defaultQuota,
+		DefaultPersonalQuota:   defaultCfg.DefaultPersonalQuota,
+		DefaultFreeQuota:       defaultCfg.DefaultFreeQuota,
 		GlobalFreeQuota:        *freeSummary,
 		SellersQuotas:          sellersQuotas,
 		FreeQuotaUsageBySeller: freeUsage,

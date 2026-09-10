@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"backend/internal/dto"
 	"backend/internal/models"
 	"backend/internal/services"
 )
@@ -128,11 +129,13 @@ func TestQuotaService_DefaultQuotaConfig(t *testing.T) {
 		t.Errorf("Expected DefaultPersonalQuota 20, got %d", cfg.DefaultPersonalQuota)
 	}
 
-	if err := svc.UpdateDefaultQuotaConfig(ctx, "admin-id", -1); err == nil {
+	valNeg := -1
+	if err := svc.UpdateDefaultQuotaConfig(ctx, "admin-id", &dto.UpdateDefaultQuotaRequest{DefaultPersonalQuota: &valNeg}); err == nil {
 		t.Errorf("Expected error for negative default quota")
 	}
 
-	if err := svc.UpdateDefaultQuotaConfig(ctx, "admin-id", 50); err != nil {
+	val50 := 50
+	if err := svc.UpdateDefaultQuotaConfig(ctx, "admin-id", &dto.UpdateDefaultQuotaRequest{DefaultPersonalQuota: &val50}); err != nil {
 		t.Errorf("Unexpected error updating default quota config: %v", err)
 	}
 }

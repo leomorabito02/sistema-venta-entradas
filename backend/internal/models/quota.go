@@ -10,11 +10,12 @@ const (
 )
 
 type SellerQuota struct {
-	SellerID      string    `gorm:"type:uuid;primaryKey" json:"seller_id"`
-	AssignedQuota int       `gorm:"not null;default:0;check:assigned_quota >= 0" json:"assigned_quota"`
-	UsedQuota     int       `gorm:"not null;default:0;check:used_quota >= 0" json:"used_quota"`
-	UsedFreeQuota int       `gorm:"not null;default:0;check:used_free_quota >= 0" json:"used_free_quota"`
-	UpdatedAt     time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+	SellerID          string    `gorm:"type:uuid;primaryKey" json:"seller_id"`
+	AssignedQuota     int       `gorm:"not null;default:0;check:assigned_quota >= 0" json:"assigned_quota"`
+	UsedQuota         int       `gorm:"not null;default:0;check:used_quota >= 0" json:"used_quota"`
+	AssignedFreeQuota int       `gorm:"not null;default:0;check:assigned_free_quota >= 0" json:"assigned_free_quota"`
+	UsedFreeQuota     int       `gorm:"not null;default:0;check:used_free_quota >= 0" json:"used_free_quota"`
+	UpdatedAt         time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 func (SellerQuota) TableName() string {
@@ -49,6 +50,7 @@ func (QuotaAuditLog) TableName() string {
 type DefaultQuotaConfig struct {
 	ID                   int       `gorm:"primaryKey;autoIncrement:false;default:1;check:id = 1" json:"id"`
 	DefaultPersonalQuota int       `gorm:"not null;default:0;check:default_personal_quota >= 0" json:"default_personal_quota"`
+	DefaultFreeQuota     int       `gorm:"not null;default:5;check:default_free_quota >= 0" json:"default_free_quota"`
 	UpdatedAt            time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
@@ -63,14 +65,19 @@ type SellerQuotaDetail struct {
 	AssignedQuota       int       `json:"assigned_quota"`
 	UsedQuota           int       `json:"used_quota"`
 	RemainingPersonal   int       `json:"remaining_personal"`
+	AssignedFreeQuota   int       `json:"assigned_free_quota"`
 	UsedFreeQuota       int       `json:"used_free_quota"`
+	RemainingFree       int       `json:"remaining_free"`
 	IsPersonalExhausted bool      `json:"is_personal_exhausted"`
+	IsFreeExhausted     bool      `json:"is_free_exhausted"`
 	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 type SellerFreeQuotaUsage struct {
-	SellerID      string `json:"seller_id"`
-	SellerName    string `json:"seller_name"`
-	SellerEmail   string `json:"seller_email"`
-	UsedFreeQuota int    `json:"used_free_quota"`
+	SellerID          string `json:"seller_id"`
+	SellerName        string `json:"seller_name"`
+	SellerEmail       string `json:"seller_email"`
+	AssignedFreeQuota int    `json:"assigned_free_quota"`
+	UsedFreeQuota     int    `json:"used_free_quota"`
+	RemainingFree     int    `json:"remaining_free"`
 }

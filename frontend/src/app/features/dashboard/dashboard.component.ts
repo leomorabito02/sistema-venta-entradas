@@ -374,20 +374,15 @@ export class DashboardComponent implements OnInit {
             const used = res.data.used_quota ?? 0;
             const avail = assigned - used;
             this.personalQuotaAvailable.set(Math.max(0, avail));
+
+            const freeAssigned = res.data.assigned_free_quota ?? 5;
+            const freeUsed = res.data.used_free_quota ?? 0;
+            const freeAvail = freeAssigned - freeUsed;
+            this.globalFreeQuotaAvailable.set(Math.max(0, freeAvail));
           }
         }
       });
     }
-    this.apiService.getGlobalFreeQuota().subscribe({
-      next: (res) => {
-        if (res.success && res.data) {
-          const total = res.data.total_free_quota ?? 0;
-          const used = res.data.used_free_quota ?? 0;
-          const avail = total - used;
-          this.globalFreeQuotaAvailable.set(Math.max(0, avail));
-        }
-      }
-    });
   }
 
   closeIssueModal(): void {

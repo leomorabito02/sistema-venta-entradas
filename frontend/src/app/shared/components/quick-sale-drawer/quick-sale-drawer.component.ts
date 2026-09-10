@@ -63,21 +63,15 @@ export class QuickSaleDrawerComponent implements OnChanges {
             const assigned = res.data.assigned_quota ?? res.data.assignedQuota ?? 0;
             this.personalQuotaRemaining.set(avail);
             this.personalQuotaTotal.set(assigned);
+
+            const freeAvail = res.data.available_free_quota ?? 0;
+            const freeAssigned = res.data.assigned_free_quota ?? 5;
+            this.freeQuotaRemaining.set(freeAvail);
+            this.freeQuotaTotal.set(freeAssigned);
           }
         }
       });
     }
-
-    this.apiService.getGlobalFreeQuota().subscribe({
-      next: (res) => {
-        if (res.success && res.data) {
-          const avail = res.data.available_quota ?? res.data.remainingQuota ?? 0;
-          const assigned = res.data.assigned_quota ?? res.data.assignedQuota ?? 0;
-          this.freeQuotaRemaining.set(avail);
-          this.freeQuotaTotal.set(assigned);
-        }
-      }
-    });
   }
 
   selectTicketType(type: 'SIMPLE' | 'CON_COMIDA'): void {

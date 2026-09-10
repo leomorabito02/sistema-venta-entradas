@@ -321,12 +321,14 @@ func TestUpdateQuotaRequest_Validate(t *testing.T) {
 }
 
 func TestUpdateDefaultQuotaRequest_Validate(t *testing.T) {
-	validReq := dto.UpdateDefaultQuotaRequest{DefaultPersonalQuota: 50}
+	val50 := 50
+	valNeg := -1
+	validReq := dto.UpdateDefaultQuotaRequest{DefaultPersonalQuota: &val50}
 	if err := validReq.Validate(); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	negReq := dto.UpdateDefaultQuotaRequest{DefaultPersonalQuota: -1}
+	negReq := dto.UpdateDefaultQuotaRequest{DefaultPersonalQuota: &valNeg}
 	if err := negReq.Validate(); err == nil {
 		t.Errorf("Expected error for negative default quota")
 	}

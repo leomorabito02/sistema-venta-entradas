@@ -95,6 +95,9 @@ func (m *MockQuotaService) GetGlobalFreeQuotaSummary(ctx context.Context) (*dto.
 func (m *MockQuotaService) SetSellerQuota(ctx context.Context, adminID string, sellerID string, assigned int) error {
 	return m.Err
 }
+func (m *MockQuotaService) SetSellerFreeQuota(ctx context.Context, adminID string, sellerID string, assigned int) error {
+	return m.Err
+}
 func (m *MockQuotaService) SetAllSellersPersonalQuota(ctx context.Context, adminID string, assigned int) error {
 	return m.Err
 }
@@ -104,7 +107,7 @@ func (m *MockQuotaService) SetGlobalFreeQuota(ctx context.Context, adminID strin
 func (m *MockQuotaService) GetDefaultQuotaConfig(ctx context.Context) (*dto.DefaultQuotaConfigResponse, error) {
 	return m.DefaultCfg, m.Err
 }
-func (m *MockQuotaService) UpdateDefaultQuotaConfig(ctx context.Context, adminID string, defaultQuota int) error {
+func (m *MockQuotaService) UpdateDefaultQuotaConfig(ctx context.Context, adminID string, req *dto.UpdateDefaultQuotaRequest) error {
 	return m.Err
 }
 func (m *MockQuotaService) GetAdminQuotaOverview(ctx context.Context) (*dto.AdminQuotaOverviewResponse, error) {
@@ -527,8 +530,9 @@ func TestQuotaController_Handlers(t *testing.T) {
 	})
 
 	t.Run("UpdateDefaultQuotaConfig", func(t *testing.T) {
+		val40 := 40
 		upReq := dto.UpdateDefaultQuotaRequest{
-			DefaultPersonalQuota: 40,
+			DefaultPersonalQuota: &val40,
 		}
 		body, _ := json.Marshal(upReq)
 

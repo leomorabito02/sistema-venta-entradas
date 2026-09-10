@@ -210,13 +210,30 @@ func (m *MockQuotaRepository) SetAllSellersPersonalQuota(ctx context.Context, ad
 	return nil
 }
 
+func (m *MockQuotaRepository) SetSellerFreeQuota(ctx context.Context, adminID string, sellerID string, assigned int) error {
+	q, ok := m.SellerQuotas[sellerID]
+	if !ok {
+		q = &models.SellerQuota{SellerID: sellerID, AssignedFreeQuota: 5}
+		m.SellerQuotas[sellerID] = q
+	}
+	q.AssignedFreeQuota = assigned
+	return nil
+}
+
+func (m *MockQuotaRepository) SetAllSellersFreeQuota(ctx context.Context, adminID string, assigned int) error {
+	for _, q := range m.SellerQuotas {
+		q.AssignedFreeQuota = assigned
+	}
+	return nil
+}
+
 func (m *MockQuotaRepository) SetGlobalFreeQuota(ctx context.Context, adminID string, totalFree int) error {
 	m.GlobalFree.TotalFreeQuota = totalFree
 	return nil
 }
 
-func (m *MockQuotaRepository) GetDefaultQuotaConfig(ctx context.Context) (int, error) {
-	return m.DefaultQuota, nil
+func (m *MockQuotaRepository) GetDefaultQuotaConfig(ctx context.Context) (*models.DefaultQuotaConfig, error) {
+	return &models.DefaultQuotaConfig{ID: 1, DefaultPersonalQuota: m.DefaultQuota, DefaultFreeQuota: 5}, nil
 }
 
 func (m *MockQuotaRepository) GetAllSellersQuotas(ctx context.Context) ([]*models.SellerQuotaDetail, error) {

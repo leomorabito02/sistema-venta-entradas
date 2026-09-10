@@ -14,6 +14,7 @@ import {
   UpdateUserRoleRequest,
   TicketPriceConfig,
   UpdateTicketPriceRequest,
+  UpdateDefaultQuotaRequest,
   PublicTicket
 } from '../models/api.models';
 import { getApiUrl } from '../utils/env.utils';
@@ -125,8 +126,8 @@ export class ApiService {
     return this.http.get<ApiResponse<import('../models/api.models').DefaultQuotaConfigResponse>>(`${this.baseUrl}/api/admin/quotas/config`);
   }
 
-  updateDefaultQuotaConfig(defaultPersonalQuota: number): Observable<ApiResponse<null>> {
-    return this.http.put<ApiResponse<null>>(`${this.baseUrl}/api/admin/quotas/config`, { default_personal_quota: defaultPersonalQuota });
+  updateDefaultQuotaConfig(req: UpdateDefaultQuotaRequest): Observable<ApiResponse<null>> {
+    return this.http.put<ApiResponse<null>>(`${this.baseUrl}/api/admin/quotas/config`, req);
   }
 
   getExhaustedSellers(): Observable<ApiResponse<import('../models/api.models').SellerQuotaDetail[]>> {
