@@ -61,6 +61,15 @@ jobs:
         working-directory: backend
         run: go build ./...
 
+      - name: Run backend unit tests with coverage
+        working-directory: backend
+        run: |
+          PACKAGES="./internal/controllers ./internal/dto ./internal/middlewares ./internal/models ./internal/security ./internal/services ./internal/views"
+          go test $PACKAGES -coverprofile=coverage.out -covermode=atomic
+          COVERAGE="$(go tool cover -func=coverage.out | awk '/^total:/ {gsub(/%/, "", $3); print $3}')"
+          echo "Backend total coverage: ${COVERAGE}%"
+          awk -v coverage="$COVERAGE" 'BEGIN { if (coverage < 60) { printf "::error::Backend coverage %.1f%% is below 60%%\n", coverage; exit 1 } }'
+
   ci-frontend:
     name: CI — Frontend (Angular)
     runs-on: ubuntu-latest
@@ -86,6 +95,10 @@ jobs:
       - name: Build Angular (production)
         working-directory: frontend
         run: pnpm exec ng build
+
+      - name: Run frontend unit tests with coverage
+        working-directory: frontend
+        run: pnpm run test:ci
 
   ci-gate:
     name: CI — Gate

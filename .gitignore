@@ -2,6 +2,8 @@ frontend/node_modules
 frontend/dist
 frontend/.env
 backend/.env
+frontend/.angular/
+frontend/coverage/
 backend/sast_report.json
 backend/sca_report.txt
 backend/zap_report.html
