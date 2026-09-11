@@ -33,9 +33,13 @@ func NewQuotaService(quotaRepo repository.QuotaRepository, userRepo repository.U
 	}
 }
 
+const (
+	errSellerIDRequired = "Seller ID is required"
+)
+
 func (s *quotaService) GetSellerQuotaSummary(ctx context.Context, sellerID string) (*dto.SellerQuotaSummaryResponse, error) {
 	if sellerID == "" {
-		return nil, models.NewBadRequestError("Seller ID is required", nil)
+		return nil, models.NewBadRequestError(errSellerIDRequired, nil)
 	}
 
 	u, err := s.userRepo.GetByID(ctx, sellerID)
@@ -90,7 +94,7 @@ func (s *quotaService) GetGlobalFreeQuotaSummary(ctx context.Context) (*dto.Glob
 
 func (s *quotaService) SetSellerQuota(ctx context.Context, adminID string, sellerID string, assigned int) error {
 	if sellerID == "" {
-		return models.NewBadRequestError("Seller ID is required", nil)
+		return models.NewBadRequestError(errSellerIDRequired, nil)
 	}
 	if assigned < 0 {
 		return models.NewBadRequestError("Assigned quota must be non-negative (>= 0)", nil)
@@ -100,7 +104,7 @@ func (s *quotaService) SetSellerQuota(ctx context.Context, adminID string, selle
 
 func (s *quotaService) SetSellerFreeQuota(ctx context.Context, adminID string, sellerID string, assigned int) error {
 	if sellerID == "" {
-		return models.NewBadRequestError("Seller ID is required", nil)
+		return models.NewBadRequestError(errSellerIDRequired, nil)
 	}
 	if assigned < 0 {
 		return models.NewBadRequestError("Assigned free quota must be non-negative (>= 0)", nil)
