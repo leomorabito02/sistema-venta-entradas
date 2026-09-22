@@ -21,6 +21,7 @@ type QuotaSource string
 const (
 	QuotaSourcePersonal QuotaSource = "PERSONAL"
 	QuotaSourceLibre    QuotaSource = "LIBRE"
+	QuotaSourceNoAplica QuotaSource = "NO_APLICA"
 )
 
 type TicketStatus string
@@ -39,7 +40,7 @@ type Ticket struct {
 	FourDigitCode string       `gorm:"type:varchar(4);not null;uniqueIndex" json:"four_digit_code"`
 	TicketType    TicketType   `gorm:"type:varchar(20);not null;check:ticket_type IN ('SIMPLE', 'CON_COMIDA')" json:"ticket_type"`
 	SaleSource    SaleSource   `gorm:"type:varchar(20);not null;check:sale_source IN ('ANTICIPADA', 'PUERTA')" json:"sale_source"`
-	QuotaSource   QuotaSource  `gorm:"type:varchar(20);not null;check:quota_source IN ('PERSONAL', 'LIBRE')" json:"quota_source"`
+	QuotaSource   QuotaSource  `gorm:"type:varchar(20);not null;check:quota_source IN ('PERSONAL', 'LIBRE', 'NO_APLICA')" json:"quota_source"`
 	PricePaid     float64      `gorm:"type:numeric(10,2);not null;check:price_paid >= 0" json:"price_paid"`
 	Status        TicketStatus `gorm:"type:varchar(20);not null;default:'VENDIDO';check:status IN ('VENDIDO', 'USADO_ENTRADA', 'USADO_COMIDA', 'ANULADO')" json:"status"`
 	BuyerID       string       `gorm:"type:uuid;not null;index" json:"buyer_id"`

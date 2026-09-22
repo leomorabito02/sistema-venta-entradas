@@ -65,7 +65,7 @@ export interface Ticket {
   fourDigitCode?: string;
   ticketType: 'SIMPLE' | 'CON_COMIDA';
   saleSource: 'ANTICIPADA' | 'PUERTA';
-  quotaSource?: 'PERSONAL' | 'LIBRE';
+  quotaSource?: 'PERSONAL' | 'LIBRE' | 'NO_APLICA';
   pricePaid: number;
   status: 'VENDIDO' | 'USADO_ENTRADA' | 'USADO_COMIDA' | 'ANULADO';
   buyerId?: string;

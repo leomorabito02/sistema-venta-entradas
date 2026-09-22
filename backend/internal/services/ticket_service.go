@@ -328,7 +328,7 @@ func (s *ticketService) toTicketResponse(t *models.Ticket) *dto.TicketResponse {
 		ID:            t.ID,
 		TicketNumber:  t.TicketNumber,
 		PublicToken:   t.PublicToken,
-		PublicURL:     fmt.Sprintf("/api/tickets/public/%s", t.PublicToken),
+		PublicURL:     fmt.Sprintf("/tickets/public/%s", t.PublicToken),
 		FourDigitCode: t.FourDigitCode,
 		TicketType:    t.TicketType,
 		SaleSource:    t.SaleSource,
@@ -447,6 +447,6 @@ func (s *ticketService) resolveQuotaSourceTx(ctx context.Context, tx *sql.Tx, se
 		}
 		return qs, nil
 	}
-	return models.QuotaSourceLibre, nil
+	return models.QuotaSourceNoAplica, nil
 }
 

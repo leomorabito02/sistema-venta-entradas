@@ -175,8 +175,8 @@
               <span class="badge badge-source">
                 {{ t.saleSource === 'ANTICIPADA' ? 'ANTICIPADA' : 'PUERTA' }}
               </span>
-              <span *ngIf="t.quotaSource" class="quota-tag" [class.personal]="t.quotaSource === 'PERSONAL'" [class.libre]="t.quotaSource === 'LIBRE'">
-                {{ t.quotaSource }}
+              <span *ngIf="t.quotaSource || t.saleSource === 'PUERTA'" class="quota-tag" [class.personal]="t.quotaSource === 'PERSONAL'" [class.libre]="t.quotaSource === 'LIBRE'" [class.no-aplica]="t.saleSource === 'PUERTA' || t.quotaSource === 'NO_APLICA'">
+                {{ t.saleSource === 'PUERTA' || t.quotaSource === 'NO_APLICA' ? 'No aplica' : t.quotaSource }}
               </span>
             </div>
           </td>
@@ -256,8 +256,8 @@
           <span class="badge badge-source">
             {{ t.saleSource === 'ANTICIPADA' ? 'ANTICIPADA' : 'PUERTA' }}
           </span>
-          <span *ngIf="t.quotaSource" class="quota-tag" [class.personal]="t.quotaSource === 'PERSONAL'" [class.libre]="t.quotaSource === 'LIBRE'">
-            {{ t.quotaSource }}
+          <span *ngIf="t.quotaSource || t.saleSource === 'PUERTA'" class="quota-tag" [class.personal]="t.quotaSource === 'PERSONAL'" [class.libre]="t.quotaSource === 'LIBRE'" [class.no-aplica]="t.saleSource === 'PUERTA' || t.quotaSource === 'NO_APLICA'">
+            {{ t.saleSource === 'PUERTA' || t.quotaSource === 'NO_APLICA' ? 'No aplica' : t.quotaSource }}
           </span>
         </div>
         <div class="card-price-action">
@@ -325,10 +325,10 @@
           <span class="detail-label">Canal de Venta:</span>
           <span>{{ selectedTicket()?.saleSource === 'ANTICIPADA' ? 'ANTICIPADA' : 'PUERTA' }}</span>
         </div>
-        <div class="detail-group" *ngIf="selectedTicket()?.quotaSource">
+        <div class="detail-group" *ngIf="selectedTicket()?.quotaSource || selectedTicket()?.saleSource === 'PUERTA'">
           <span class="detail-label">Origen de Cuota:</span>
-          <span class="quota-tag" [class.personal]="selectedTicket()?.quotaSource === 'PERSONAL'" [class.libre]="selectedTicket()?.quotaSource === 'LIBRE'">
-            Cuota {{ selectedTicket()?.quotaSource === 'PERSONAL' ? 'Personal de Vendedor' : 'Compartida / Libre (Global)' }}
+          <span class="quota-tag" [class.personal]="selectedTicket()?.quotaSource === 'PERSONAL'" [class.libre]="selectedTicket()?.quotaSource === 'LIBRE'" [class.no-aplica]="selectedTicket()?.saleSource === 'PUERTA' || selectedTicket()?.quotaSource === 'NO_APLICA'">
+            {{ selectedTicket()?.saleSource === 'PUERTA' || selectedTicket()?.quotaSource === 'NO_APLICA' ? 'No aplica' : (selectedTicket()?.quotaSource === 'PERSONAL' ? 'Cuota Personal de Vendedor' : 'Cuota Compartida / Libre (Global)') }}
           </span>
         </div>
         <div class="detail-group">
@@ -355,7 +355,7 @@
       <div class="public-url-box">
         <label for="public-validation-url">Enlace para el cliente:</label>
         <div class="url-input-group">
-          <input id="public-validation-url" type="text" readonly [value]="'/api/tickets/public/' + selectedTicket()?.publicToken" class="neu-input" />
+          <input id="public-validation-url" type="text" readonly [value]="'/tickets/public/' + selectedTicket()?.publicToken" class="neu-input" />
           <button class="neu-btn neu-btn-bordo" (click)="copyPublicUrl(selectedTicket()!)">
             <svg class="icon" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> {{ copiedPublicUrl() ? '¡Copiado! ✓' : 'Copiar Link' }}
           </button>

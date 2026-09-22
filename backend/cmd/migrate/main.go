@@ -65,6 +65,10 @@ func main() {
 	_ = db.Exec(`UPDATE tickets SET quota_source = 'PERSONAL' WHERE quota_source IS NULL OR quota_source = '';`).Error
 	_ = db.Exec(`ALTER TABLE tickets ALTER COLUMN quota_source SET NOT NULL;`).Error
 
+	// Update PostgreSQL check constraint for quota_source to include 'NO_APLICA'
+	_ = db.Exec(`ALTER TABLE tickets DROP CONSTRAINT IF EXISTS chk_tickets_quota_source;`).Error
+	_ = db.Exec(`ALTER TABLE tickets ADD CONSTRAINT chk_tickets_quota_source CHECK (quota_source IN ('PERSONAL', 'LIBRE', 'NO_APLICA'));`).Error
+
 	// Create partial unique index on 4-digit codes for active tickets (RNF-06.02)
 	rawIndexSQL := `
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_active_tickets_4digit_code 

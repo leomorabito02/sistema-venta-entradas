@@ -127,6 +127,25 @@ describe('QuickSaleDrawerComponent', () => {
     expect(component.ticketCreated.emit).toHaveBeenCalledWith(mockTicket);
   });
 
+  // Black-Box & State Transition: Immediate entry authorization
+  it('should authorize entry now and update ticket status to USADO_ENTRADA', () => {
+    apiServiceSpy.validateTicket = jasmine.createSpy('validateTicket').and.returnValue(
+      of({ success: true, message: 'Ingreso registrado exitosamente' })
+    );
+    spyOn(component.ticketCreated, 'emit');
+
+    component.createdTicket = { ...mockTicket, status: 'VENDIDO' };
+    component.authorizeEntryNow();
+
+    expect(apiServiceSpy.validateTicket).toHaveBeenCalledWith({
+      public_token: 'qs-token-99',
+      validation_type: 'ENTRADA'
+    });
+    expect(component.createdTicket.status).toBe('USADO_ENTRADA');
+    expect(toastServiceSpy.success).toHaveBeenCalledWith('¡Ingreso autorizado y registrado con éxito!');
+    expect(component.ticketCreated.emit).toHaveBeenCalled();
+  });
+
   // White-Box Testing: WhatsApp Link Formatting
   it('should construct correct WhatsApp share URL with 549 country prefix for Argentina', () => {
     component.createdTicket = mockTicket;

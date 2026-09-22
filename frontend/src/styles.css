@@ -193,6 +193,34 @@ svg.icon, .icon {
   color: #991b1b;
 }
 
+.quota-tag {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--bg-cream-dark, #E9E1D2);
+  color: var(--text-primary, #2B2325);
+}
+
+.quota-tag.personal {
+  background: #E0F2FE;
+  color: #0369A1;
+  border: 1px solid #BAE6FD;
+}
+
+.quota-tag.libre {
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+}
+
+.quota-tag.no-aplica {
+  background: #F3F4F6;
+  color: #4B5563;
+  border: 1px solid #E5E7EB;
+}
+
 /* Pill Selectors for Mobile */
 .pill-selector {
   display: flex;

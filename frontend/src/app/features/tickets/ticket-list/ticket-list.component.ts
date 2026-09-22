@@ -199,7 +199,7 @@ export class TicketListComponent implements OnInit {
 
   copyPublicUrl(t: Ticket): void {
     if (!t?.publicToken) return;
-    const fullUrl = `${window.location.origin}/api/tickets/public/${encodeURIComponent(t.publicToken)}`;
+    const fullUrl = `${window.location.origin}/tickets/public/${encodeURIComponent(t.publicToken)}`;
     navigator.clipboard.writeText(fullUrl).then(() => {
       this.copiedPublicUrl.set(true);
       setTimeout(() => this.copiedPublicUrl.set(false), 2500);

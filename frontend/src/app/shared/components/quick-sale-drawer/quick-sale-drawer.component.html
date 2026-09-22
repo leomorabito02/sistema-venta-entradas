@@ -8,18 +8,49 @@
 
     <!-- Success View -->
     <div *ngIf="createdTicket" class="success-view">
-      <div class="success-icon">
+      <div class="success-icon" [class.status-authorized]="createdTicket.status === 'USADO_ENTRADA'">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
       </div>
+
       <h4 class="buyer-name">{{ createdTicket.buyerName || (createdTicket.buyer ? createdTicket.buyer.first_name + ' ' + createdTicket.buyer.last_name : 'Comprador') }}</h4>
+      
+      <!-- Status Badge -->
+      <div class="status-badge-container">
+        <span class="status-badge" [ngClass]="createdTicket.status === 'USADO_ENTRADA' ? 'badge-ingresado' : 'badge-vendido'">
+          {{ createdTicket.status === 'USADO_ENTRADA' ? '✓ INGRESO AUTORIZADO (USADO_ENTRADA)' : 'PENDIENTE DE INGRESO (VENDIDO)' }}
+        </span>
+      </div>
+
+      <!-- Code Badge -->
       <div class="code-badge">
         <span class="code-label">Código de Entrada</span>
         <span class="code-value">{{ createdTicket.fourDigitCode }}</span>
       </div>
 
+      <!-- Scannable QR Code for Assistant -->
+      <div *ngIf="qrDataUrl" class="qr-container">
+        <p class="qr-instruction">Escanear para abrir la entrada digital:</p>
+        <div class="qr-card">
+          <img [src]="qrDataUrl" alt="Código QR de Entrada" class="qr-img" />
+        </div>
+      </div>
+
       <div class="success-actions">
+        <!-- Authorize / Validate Entry Direct Button -->
+        <button *ngIf="createdTicket.status === 'VENDIDO'"
+                type="button" 
+                (click)="authorizeEntryNow()" 
+                [disabled]="authorizing"
+                class="neu-btn btn-authorize">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-icon">
+            <path d="M9 11l3 3L22 4"></path>
+            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+          </svg>
+          {{ authorizing ? 'Autorizando...' : 'Autorizar / Validar Ingreso Ahora' }}
+        </button>
+
         <a [href]="getWhatsAppLink()" target="_blank" class="neu-btn btn-whatsapp">
           <svg viewBox="0 0 24 24" fill="currentColor" class="w-icon">
             <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.964 9.964 0 001.333 4.993L2 22l5.233-1.237a9.96 9.96 0 004.779 1.221h.004c5.505 0 9.988-4.478 9.989-9.984.001-2.668-1.036-5.176-2.923-7.062A9.925 9.925 0 0012.012 2z"/>
