@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { QuickSaleService } from '../../../core/services/quick-sale.service';
 import { Ticket, User } from '../../../core/models/api.models';
 
 @Component({
@@ -15,6 +16,7 @@ import { Ticket, User } from '../../../core/models/api.models';
 export class TicketListComponent implements OnInit {
   private readonly apiService = inject(ApiService);
   readonly authService = inject(AuthService);
+  private readonly quickSaleService = inject(QuickSaleService);
 
   loading = signal<boolean>(true);
   errorMessage = signal<string>('');
@@ -97,6 +99,9 @@ export class TicketListComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadData();
+    this.quickSaleService.ticketCreated$.subscribe(() => {
+      this.loadData();
+    });
   }
 
   loadData(): void {
