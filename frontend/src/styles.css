@@ -499,7 +499,8 @@ svg.icon, .icon {
     border-top-right-radius: 28px !important;
     max-height: calc(88vh - var(--safe-area-bottom, 0px)) !important;
     padding: 1.25rem 1.25rem calc(1.5rem + var(--safe-area-bottom, 0px)) 1.25rem !important;
-    animation: slideUpModal 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: slideUpModal 0.18s cubic-bezier(0.2, 0.9, 0.3, 1);
+    will-change: transform;
   }
 
   .modal-footer {
@@ -536,6 +537,6 @@ svg.icon, .icon {
 }
 
 @keyframes slideUpModal {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+  from { transform: translate3d(0, 100%, 0); }
+  to { transform: translate3d(0, 0, 0); }
 }

@@ -11,3 +11,4 @@ tests/load/.env.test
 tests/load/fixtures/seed_tokens.json
 tests/load/setup_api/setup_api
 tests/load/gen_fixtures/gen_fixtures
+frontend/coverage/index.html

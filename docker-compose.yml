@@ -6,6 +6,11 @@ services:
     container_name: backend-monolith
     ports:
       - "8080:8080"
+    env_file:
+      - path: ./backend/.env
+        required: false
+      - path: .env
+        required: false
     environment:
       - PORT=8080
       - ALLOWED_ORIGINS=http://localhost:4200,http://localhost:80,http://localhost,http://frontend-spa
