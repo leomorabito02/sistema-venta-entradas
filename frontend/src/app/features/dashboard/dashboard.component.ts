@@ -8,11 +8,12 @@ import { AuthService } from '../../core/services/auth.service';
 import { QuickSaleService } from '../../core/services/quick-sale.service';
 import { ToastService } from '../../core/services/toast.service';
 import { Ticket, User, DashboardStats, SellerRankingItem } from '../../core/models/api.models';
+import { SkeletonLoaderComponent } from '../../shared/components/skeleton-loader/skeleton-loader.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, SkeletonLoaderComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })

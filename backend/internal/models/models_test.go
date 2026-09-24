@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+	"time"
 
 	"backend/internal/models"
 )
@@ -109,5 +110,19 @@ func TestModelTableNames(t *testing.T) {
 	}
 	if (models.TicketPrice{}).TableName() != "ticket_prices" {
 		t.Errorf("Unexpected table name for TicketPrice")
+	}
+	if (models.DefaultQuotaConfig{}).TableName() != "default_quota_configs" {
+		t.Errorf("Unexpected table name for DefaultQuotaConfig")
+	}
+	if (models.RefreshToken{}).TableName() != "refresh_tokens" {
+		t.Errorf("Unexpected table name for RefreshToken")
+	}
+
+	activeToken := &models.RefreshToken{
+		ExpiresAt: time.Now().Add(time.Hour),
+		RevokedAt: nil,
+	}
+	if !activeToken.IsActive() {
+		t.Errorf("Expected activeToken.IsActive() to be true")
 	}
 }

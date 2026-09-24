@@ -22,7 +22,7 @@ describe('ToastService', () => {
     service.error('Server Error', 'Failed to connect');
 
     const currentToasts = service.toasts();
-    expect(currentToasts.length).toBe(2);
+    expect(currentToasts).toHaveSize(2);
     expect(currentToasts[0].type).toBe('success');
     expect(currentToasts[0].title).toBe('Operation Successful');
     expect(currentToasts[1].type).toBe('error');
@@ -32,13 +32,13 @@ describe('ToastService', () => {
   // White-Box & State Transition Testing: Automatic Dismissal with Timer
   it('should auto-remove toast after specified duration', fakeAsync(() => {
     service.success('Auto Dismiss', 'Will disappear', 3000);
-    expect(service.toasts().length).toBe(1);
+    expect(service.toasts()).toHaveSize(1);
 
     tick(1500);
-    expect(service.toasts().length).toBe(1);
+    expect(service.toasts()).toHaveSize(1);
 
     tick(1500);
-    expect(service.toasts().length).toBe(0);
+    expect(service.toasts()).toHaveSize(0);
   }));
 
   // Black-Box Testing: Manual Removal
@@ -47,13 +47,13 @@ describe('ToastService', () => {
     service.info('Notification 2', 'Message 2');
 
     const initialToasts = service.toasts();
-    expect(initialToasts.length).toBe(2);
+    expect(initialToasts).toHaveSize(2);
 
     const targetId = initialToasts[0].id;
     service.remove(targetId);
 
     const remainingToasts = service.toasts();
-    expect(remainingToasts.length).toBe(1);
+    expect(remainingToasts).toHaveSize(1);
     expect(remainingToasts[0].id).not.toBe(targetId);
   });
 });

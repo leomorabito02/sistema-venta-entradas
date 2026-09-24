@@ -29,4 +29,16 @@ describe('GlobalErrorHandler', () => {
     expect(console.error).toHaveBeenCalled();
     expect(toastServiceSpy.error).toHaveBeenCalledWith('Error de Aplicación', 'Uncaught runtime exception');
   });
+
+  it('should use fallback error message when error object has no message property', () => {
+    spyOn(console, 'error');
+
+    handler.handleError({});
+
+    expect(console.error).toHaveBeenCalled();
+    expect(toastServiceSpy.error).toHaveBeenCalledWith(
+      'Error de Aplicación',
+      'Se ha producido un error inesperado en la aplicación.'
+    );
+  });
 });

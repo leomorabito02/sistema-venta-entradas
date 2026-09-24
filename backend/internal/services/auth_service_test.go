@@ -154,10 +154,26 @@ func TestAuthService_RotateRefreshToken(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected error when attempting to reuse revoked refresh token")
 	}
+
+	// 5. Expired refresh token
+	expiredRaw := "expired-raw-refresh-token"
+	expiredHash := security.HashToken(expiredRaw)
+	tokenRepo.Tokens[expiredHash] = &models.RefreshToken{
+		ID:        "token-id-exp",
+		UserID:    "user-uuid-1",
+		TokenHash: expiredHash,
+		ExpiresAt: time.Now().Add(-time.Hour * 24),
+		RevokedAt: nil,
+	}
+
+	_, err = svc.RotateRefreshToken(ctx, expiredRaw)
+	if err == nil {
+		t.Errorf("Expected error for expired refresh token")
+	}
 }
 
 func TestAuthService_LogoutAndUserManagement(t *testing.T) {
-	svc, userRepo, tokenRepo := setupAuthServiceTest()
+	svc, _, tokenRepo := setupAuthServiceTest()
 	ctx := context.Background()
 
 	// Logout
@@ -185,21 +201,24 @@ func TestAuthService_LogoutAndUserManagement(t *testing.T) {
 		t.Fatalf("ListUsers failed: %v", err)
 	}
 
-	// UpdateUserStatus
-	err = svc.UpdateUserStatus(ctx, "user-uuid-1", models.StatusDisabled)
-	if err != nil {
-		t.Fatalf("UpdateUserStatus failed: %v", err)
-	}
-	if userRepo.Users["user-uuid-1"].Status != models.StatusDisabled {
-		t.Errorf("Expected StatusDisabled, got %s", userRepo.Users["user-uuid-1"].Status)
+	// Logout empty token
+	if err := svc.Logout(ctx, ""); err != nil {
+		t.Errorf("Expected nil error for empty token logout, got %v", err)
 	}
 
-	// UpdateUserRole
-	err = svc.UpdateUserRole(ctx, "user-uuid-1", models.RoleAdmin)
-	if err != nil {
-		t.Fatalf("UpdateUserRole failed: %v", err)
+	// UpdateUserStatus errors
+	if err := svc.UpdateUserStatus(ctx, "", models.StatusActive); err == nil {
+		t.Errorf("Expected error for empty user ID")
 	}
-	if userRepo.Users["user-uuid-1"].Role != models.RoleAdmin {
-		t.Errorf("Expected RoleAdmin, got %s", userRepo.Users["user-uuid-1"].Role)
+	if err := svc.UpdateUserStatus(ctx, "non-existent", models.StatusActive); err == nil {
+		t.Errorf("Expected error for non-existent user ID")
+	}
+
+	// UpdateUserRole errors
+	if err := svc.UpdateUserRole(ctx, "", models.RoleAdmin); err == nil {
+		t.Errorf("Expected error for empty user ID")
+	}
+	if err := svc.UpdateUserRole(ctx, "non-existent", models.RoleAdmin); err == nil {
+		t.Errorf("Expected error for non-existent user ID")
 	}
 }

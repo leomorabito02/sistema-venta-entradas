@@ -369,6 +369,18 @@ func (m *MockTicketRepository) UpdateStatusTx(ctx context.Context, tx *sql.Tx, t
 	return nil
 }
 
+func (m *MockTicketRepository) UpdateStatusConditionalTx(ctx context.Context, tx *sql.Tx, ticketID string, expectedStatus models.TicketStatus, newStatus models.TicketStatus) error {
+	t, ok := m.Tickets[ticketID]
+	if !ok {
+		return models.ErrNotFound
+	}
+	if t.Status != expectedStatus {
+		return models.ErrStatusConflict
+	}
+	t.Status = newStatus
+	return nil
+}
+
 func (m *MockTicketRepository) RecordValidationTx(ctx context.Context, tx *sql.Tx, val *models.TicketValidation) error {
 	m.Validations = append(m.Validations, val)
 	return nil

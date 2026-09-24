@@ -118,10 +118,7 @@
   </div>
 
   <!-- Loader -->
-  <div *ngIf="loading()" class="loading-state">
-    <div class="spinner"></div>
-    <p>Cargando lista completa de tickets...</p>
-  </div>
+  <app-skeleton-loader *ngIf="loading()"></app-skeleton-loader>
 
   <!-- Tabla de Tickets -->
   <div *ngIf="!loading() && filteredTickets().length === 0" class="neu-card empty-card">
@@ -286,6 +283,12 @@
     </div>
 
     <div class="modal-body">
+      <!-- QR Code Display in Detail -->
+      <div *ngIf="detailQrDataUrl()" class="qr-container">
+        <img [src]="detailQrDataUrl()" alt="Código QR del Bono" class="qr-image" />
+        <p class="qr-caption">Escanea el QR para acceder o autoriza directamente abajo</p>
+      </div>
+
       <!-- Highlight Box -->
       <div class="code-highlight-box neu-card">
         <div class="highlight-item">
@@ -359,6 +362,21 @@
           <button class="neu-btn neu-btn-bordo" (click)="copyPublicUrl(selectedTicket()!)">
             <svg class="icon" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> {{ copiedPublicUrl() ? '¡Copiado! ✓' : 'Copiar Link' }}
           </button>
+        </div>
+      </div>
+
+      <!-- Direct Authorization Button for Entry in Detail Modal -->
+      <div class="direct-authorize-section" *ngIf="selectedTicket()?.status === 'VENDIDO'">
+        <button class="neu-btn neu-btn-authorize" [disabled]="authorizingDetailEntry()" (click)="authorizeDetailEntryNow()">
+          <span *ngIf="authorizingDetailEntry()" class="neu-spinner"></span>
+          <svg *ngIf="!authorizingDetailEntry()" class="icon" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <span>{{ authorizingDetailEntry() ? 'Autorizando Ingreso...' : 'Autorizar / Validar Ingreso Ahora' }}</span>
+        </button>
+      </div>
+      <div class="direct-authorize-section" *ngIf="selectedTicket()?.status === 'USADO_ENTRADA' || selectedTicket()?.status === 'USADO_COMIDA'">
+        <div class="badge-authorized-success">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <span>✓ Entrada Validada / En la fiesta</span>
         </div>
       </div>
     </div>

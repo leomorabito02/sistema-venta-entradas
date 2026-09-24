@@ -1,15 +1,18 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, inject, signal, computed, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import QRCode from 'qrcode';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { QuickSaleService } from '../../../core/services/quick-sale.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { Ticket, User } from '../../../core/models/api.models';
+import { SkeletonLoaderComponent } from '../../../shared/components/skeleton-loader/skeleton-loader.component';
 
 @Component({
   selector: 'app-ticket-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SkeletonLoaderComponent],
   templateUrl: './ticket-list.component.html',
   styleUrl: './ticket-list.component.css'
 })
@@ -17,6 +20,8 @@ export class TicketListComponent implements OnInit {
   private readonly apiService = inject(ApiService);
   readonly authService = inject(AuthService);
   private readonly quickSaleService = inject(QuickSaleService);
+  private readonly toastService = inject(ToastService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   loading = signal<boolean>(true);
   errorMessage = signal<string>('');
@@ -40,8 +45,66 @@ export class TicketListComponent implements OnInit {
   annulReason = signal<string>('');
   annulling = signal<boolean>(false);
   copiedPublicUrl = signal<boolean>(false);
+  detailQrDataUrl = signal<string | null>(null);
+  authorizingDetailEntry = signal<boolean>(false);
 
-  // Computed filtered list
+  generateDetailQrCode(ticket: Ticket): void {
+    if (!ticket?.publicToken) return;
+    const fullUrl = `${window.location.origin}/tickets/public/${ticket.publicToken}`;
+
+    const qrFn = QRCode.toDataURL || (QRCode as any).default?.toDataURL;
+    if (typeof qrFn === 'function') {
+      qrFn(fullUrl, {
+        width: 220,
+        margin: 2,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#1a101f', light: '#ffffff' }
+      })
+        .then((url: string) => {
+          this.detailQrDataUrl.set(url);
+          this.cdr.detectChanges();
+        })
+        .catch((err: any) => console.error('Error generating detail QR code:', err));
+    }
+  }
+
+  authorizeDetailEntryNow(): void {
+    const ticket = this.selectedTicket();
+    if (!ticket?.publicToken) return;
+
+    this.authorizingDetailEntry.set(true);
+    this.apiService.validateTicket({
+      public_token: ticket.publicToken,
+      validation_type: 'ENTRADA'
+    }).subscribe({
+      next: (res) => {
+        this.authorizingDetailEntry.set(false);
+        if (res.success) {
+          const updated = { ...ticket, status: 'USADO_ENTRADA' as const };
+          this.selectedTicket.set(updated);
+          this.toastService.success('¡Ingreso autorizado y registrado con éxito!');
+          this.loadData();
+          this.cdr.detectChanges();
+        } else {
+          this.toastService.error(res.error || 'Error al autorizar ingreso');
+        }
+      },
+      error: (err) => {
+        this.authorizingDetailEntry.set(false);
+        const msg = err.error?.error || err.error?.message || 'Error al autorizar ingreso';
+        this.toastService.error(msg);
+      }
+    });
+  }
+
+  // Detail Modal methods
+  openDetail(t: Ticket): void {
+    this.selectedTicket.set(t);
+    this.detailQrDataUrl.set(null);
+    this.copiedPublicUrl.set(false);
+    this.generateDetailQrCode(t);
+    this.showDetailModal.set(true);
+  }
   readonly filteredTickets = computed(() => {
     const list = this.tickets();
     const query = this.searchQuery().trim().toLowerCase();
@@ -140,13 +203,6 @@ export class TicketListComponent implements OnInit {
     this.ticketTypeFilter.set('ALL');
     this.saleSourceFilter.set('ALL');
     this.sellerFilter.set('ALL');
-  }
-
-  // Detail Modal methods
-  openDetail(t: Ticket): void {
-    this.selectedTicket.set(t);
-    this.copiedPublicUrl.set(false);
-    this.showDetailModal.set(true);
   }
 
   closeDetail(): void {

@@ -3,10 +3,10 @@
 ## Frontend (Angular)
 ```bash
 # Execute unit tests with code coverage report
-pnpm test -- --watch=false --code-coverage
+pnpm ng test --watch=false --code-coverage
 
-# Run SonarQube Scanner
-pnpm dlx sonarqube-scanner \
+# Run SonarQube Scanner using installed CLI
+sonar-scanner \
   -Dsonar.host.url=http://localhost:9000 \
   -Dsonar.token=sqp_b045320b242d5514c455c32bc9c9f2d60d03d041 \
   -Dsonar.projectKey=sistema-venta-entradas-frontend \

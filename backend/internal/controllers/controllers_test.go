@@ -123,7 +123,6 @@ func TestHealthController(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	rec := httptest.NewRecorder()
-
 	ctrl.Health(rec, req)
 
 	if rec.Code != http.StatusOK {
@@ -134,39 +133,64 @@ func TestHealthController(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
-
 	if !resp.Success {
 		t.Errorf("Expected success response")
 	}
 }
 
-func TestAuthController_Handlers(t *testing.T) {
+func newTestAuthController() *controllers.AuthController {
 	jsonView := views.NewJSONView()
 	mockAuth := &MockAuthService{
 		UserResp:  &dto.UserResponse{ID: "u-1", Email: "test@example.com"},
 		TokenResp: &dto.TokenResponse{AccessToken: "acc-token", RefreshToken: "ref-token", Status: models.StatusActive},
 	}
-	ctrl := controllers.NewAuthController(mockAuth, jsonView)
+	return controllers.NewAuthController(mockAuth, jsonView)
+}
 
-	t.Run("GoogleLogin Invalid JSON -> 400", func(t *testing.T) {
+func TestAuthController_GoogleLogin(t *testing.T) {
+	ctrl := newTestAuthController()
+
+	t.Run("Invalid JSON -> 400", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/google", bytes.NewBufferString("{bad-json"))
 		rec := httptest.NewRecorder()
-
 		ctrl.GoogleLogin(rec, req)
-
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("Expected status 400, got %d", rec.Code)
 		}
 	})
 
+	t.Run("Invalid Token -> 400", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/google", bytes.NewBufferString(`{"id_token":"invalid.jwt.token"}`))
+		rec := httptest.NewRecorder()
+		ctrl.GoogleLogin(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d", rec.Code)
+		}
+	})
+}
+
+func TestAuthController_RefreshAndLogout(t *testing.T) {
+	jsonView := views.NewJSONView()
+	ctrl := newTestAuthController()
+
 	t.Run("Refresh Missing Cookie -> 401", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", nil)
 		rec := httptest.NewRecorder()
-
 		ctrl.Refresh(rec, req)
-
 		if rec.Code != http.StatusUnauthorized {
 			t.Errorf("Expected status 401 Unauthorized for missing cookie, got %d", rec.Code)
+		}
+	})
+
+	t.Run("Refresh Service Error -> 401", func(t *testing.T) {
+		failAuth := &MockAuthService{Err: models.NewUnauthorizedError("invalid refresh token", nil)}
+		failCtrl := controllers.NewAuthController(failAuth, jsonView)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", nil)
+		req.AddCookie(&http.Cookie{Name: "refresh_token", Value: "invalid-refresh"})
+		rec := httptest.NewRecorder()
+		failCtrl.Refresh(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("Expected 401 Unauthorized for failed refresh, got %d", rec.Code)
 		}
 	})
 
@@ -174,9 +198,7 @@ func TestAuthController_Handlers(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", nil)
 		req.AddCookie(&http.Cookie{Name: "refresh_token", Value: "valid-refresh"})
 		rec := httptest.NewRecorder()
-
 		ctrl.Refresh(rec, req)
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK, got %d", rec.Code)
 		}
@@ -186,20 +208,20 @@ func TestAuthController_Handlers(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
 		req.AddCookie(&http.Cookie{Name: "refresh_token", Value: "logout-refresh"})
 		rec := httptest.NewRecorder()
-
 		ctrl.Logout(rec, req)
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK on logout, got %d", rec.Code)
 		}
 	})
+}
+
+func TestAuthController_UserManagement(t *testing.T) {
+	ctrl := newTestAuthController()
 
 	t.Run("UpdateUserStatus Missing ID -> 400", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPut, "/api/v1/users//status", nil)
 		rec := httptest.NewRecorder()
-
 		ctrl.UpdateUserStatus(rec, req)
-
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("Expected status 400, got %d", rec.Code)
 		}
@@ -208,13 +230,10 @@ func TestAuthController_Handlers(t *testing.T) {
 	t.Run("UpdateUserStatus Handler Success", func(t *testing.T) {
 		statusReq := dto.UpdateUserStatusRequest{Status: models.StatusActive}
 		body, _ := json.Marshal(statusReq)
-
 		req := httptest.NewRequest(http.MethodPut, "/api/v1/users/u-1/status", bytes.NewReader(body))
 		req.SetPathValue("id", "u-1")
 		rec := httptest.NewRecorder()
-
 		ctrl.UpdateUserStatus(rec, req)
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK for UpdateUserStatus, got %d", rec.Code)
 		}
@@ -223,9 +242,7 @@ func TestAuthController_Handlers(t *testing.T) {
 	t.Run("UpdateUserRole Missing ID -> 400", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPut, "/api/v1/users//role", nil)
 		rec := httptest.NewRecorder()
-
 		ctrl.UpdateUserRole(rec, req)
-
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("Expected status 400, got %d", rec.Code)
 		}
@@ -234,13 +251,10 @@ func TestAuthController_Handlers(t *testing.T) {
 	t.Run("UpdateUserRole Handler Success", func(t *testing.T) {
 		roleReq := dto.UpdateUserRoleRequest{Role: models.RoleAdmin}
 		body, _ := json.Marshal(roleReq)
-
 		req := httptest.NewRequest(http.MethodPut, "/api/v1/users/u-1/role", bytes.NewReader(body))
 		req.SetPathValue("id", "u-1")
 		rec := httptest.NewRecorder()
-
 		ctrl.UpdateUserRole(rec, req)
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK for UpdateUserRole, got %d", rec.Code)
 		}
@@ -249,16 +263,14 @@ func TestAuthController_Handlers(t *testing.T) {
 	t.Run("ListUsers Handler", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/users", nil)
 		rec := httptest.NewRecorder()
-
 		ctrl.ListUsers(rec, req)
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK for ListUsers, got %d", rec.Code)
 		}
 	})
 }
 
-func TestTicketController_Handlers(t *testing.T) {
+func newTestTicketController() *controllers.TicketController {
 	jsonView := views.NewJSONView()
 	mockTicketSvc := &MockTicketService{
 		TicketResp: &dto.TicketResponse{ID: "t-123", TicketNumber: 100, Status: models.TicketStatusUsadoEntrada},
@@ -267,14 +279,16 @@ func TestTicketController_Handlers(t *testing.T) {
 		PriceResp:  &dto.TicketPriceResponse{TicketType: models.TicketTypeSimple, Price: 1200},
 		Tickets:    []*dto.TicketResponse{{ID: "t-1"}},
 	}
-	ctrl := controllers.NewTicketController(mockTicketSvc, jsonView)
+	return controllers.NewTicketController(mockTicketSvc, jsonView)
+}
+
+func TestTicketController_CreateAndList(t *testing.T) {
+	ctrl := newTestTicketController()
 
 	t.Run("CreateTicket Missing Seller ID -> 401", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/tickets", nil)
 		rec := httptest.NewRecorder()
-
 		ctrl.CreateTicket(rec, req)
-
 		if rec.Code != http.StatusUnauthorized {
 			t.Errorf("Expected status 401, got %d", rec.Code)
 		}
@@ -284,20 +298,35 @@ func TestTicketController_Handlers(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/tickets", bytes.NewBufferString("{bad-json"))
 		req.Header.Set("X-User-ID", "seller-1")
 		rec := httptest.NewRecorder()
-
 		ctrl.CreateTicket(rec, req)
-
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("Expected status 400, got %d", rec.Code)
+		}
+	})
+
+	t.Run("CreateTicket Success", func(t *testing.T) {
+		createPayload := dto.CreateTicketRequest{
+			TicketType:  models.TicketTypeSimple,
+			SaleSource:  models.SaleSourceAnticipada,
+			QuotaSource: models.QuotaSourcePersonal,
+			FirstName:   "Ana",
+			LastName:    "Gomez",
+			Phone:       "11223344",
+		}
+		body, _ := json.Marshal(createPayload)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/tickets", bytes.NewReader(body))
+		req.Header.Set("X-User-ID", "seller-1")
+		rec := httptest.NewRecorder()
+		ctrl.CreateTicket(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Errorf("Expected status 200 OK for CreateTicket, got %d", rec.Code)
 		}
 	})
 
 	t.Run("ListTickets Missing Seller ID -> 401", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/tickets", nil)
 		rec := httptest.NewRecorder()
-
 		ctrl.ListTickets(rec, req)
-
 		if rec.Code != http.StatusUnauthorized {
 			t.Errorf("Expected status 401, got %d", rec.Code)
 		}
@@ -308,20 +337,20 @@ func TestTicketController_Handlers(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/tickets", nil)
 		ctx := context.WithValue(req.Context(), middlewares.UserContextKey, user)
 		rec := httptest.NewRecorder()
-
 		ctrl.ListTickets(rec, req.WithContext(ctx))
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK, got %d", rec.Code)
 		}
 	})
+}
+
+func TestTicketController_PublicAndValidate(t *testing.T) {
+	ctrl := newTestTicketController()
 
 	t.Run("GetPublicTicket Missing Token Path -> 400", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/tickets/public/", nil)
 		rec := httptest.NewRecorder()
-
 		ctrl.GetPublicTicket(rec, req)
-
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("Expected status 400, got %d", rec.Code)
 		}
@@ -331,9 +360,7 @@ func TestTicketController_Handlers(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/tickets/public/tok-123", nil)
 		req.SetPathValue("token", "tok-123")
 		rec := httptest.NewRecorder()
-
 		ctrl.GetPublicTicket(rec, req)
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK for GetPublicTicket, got %d", rec.Code)
 		}
@@ -342,9 +369,7 @@ func TestTicketController_Handlers(t *testing.T) {
 	t.Run("ValidateTicket Missing Operator ID -> 401", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/tickets/validate", nil)
 		rec := httptest.NewRecorder()
-
 		ctrl.ValidateTicket(rec, req)
-
 		if rec.Code != http.StatusUnauthorized {
 			t.Errorf("Expected status 401, got %d", rec.Code)
 		}
@@ -356,18 +381,19 @@ func TestTicketController_Handlers(t *testing.T) {
 			ValidationType: models.ValidationTypeEntrada,
 		}
 		body, _ := json.Marshal(valReq)
-
 		user := &models.User{ID: "operator-1", Role: models.RoleSeller, Status: models.StatusActive}
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/tickets/validate", bytes.NewReader(body))
 		ctx := context.WithValue(req.Context(), middlewares.UserContextKey, user)
 		rec := httptest.NewRecorder()
-
 		ctrl.ValidateTicket(rec, req.WithContext(ctx))
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK on ValidateTicket, got %d", rec.Code)
 		}
 	})
+}
+
+func TestTicketController_AnnulAndPrices(t *testing.T) {
+	ctrl := newTestTicketController()
 
 	t.Run("AnnulTicket Handler Success", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/tickets/t-123/annul", bytes.NewBufferString(`{"reason":"refund"}`))
@@ -375,9 +401,7 @@ func TestTicketController_Handlers(t *testing.T) {
 		user := &models.User{ID: "operator-1", Role: models.RoleSeller, Status: models.StatusActive}
 		ctx := context.WithValue(req.Context(), middlewares.UserContextKey, user)
 		rec := httptest.NewRecorder()
-
 		ctrl.AnnulTicket(rec, req.WithContext(ctx))
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK on AnnulTicket, got %d", rec.Code)
 		}
@@ -386,9 +410,7 @@ func TestTicketController_Handlers(t *testing.T) {
 	t.Run("GetPrices Handler", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/tickets/prices", nil)
 		rec := httptest.NewRecorder()
-
 		ctrl.GetPrices(rec, req)
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK for GetPrices, got %d", rec.Code)
 		}
@@ -400,21 +422,18 @@ func TestTicketController_Handlers(t *testing.T) {
 			Price:      1200.0,
 		}
 		body, _ := json.Marshal(upReq)
-
 		admin := &models.User{ID: "admin-1", Role: models.RoleAdmin, Status: models.StatusActive}
 		req := httptest.NewRequest(http.MethodPut, "/api/v1/tickets/prices", bytes.NewReader(body))
 		ctx := context.WithValue(req.Context(), middlewares.UserContextKey, admin)
 		rec := httptest.NewRecorder()
-
 		ctrl.UpdatePrice(rec, req.WithContext(ctx))
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK for UpdatePrice, got %d", rec.Code)
 		}
 	})
 }
 
-func TestQuotaController_Handlers(t *testing.T) {
+func newTestQuotaController() *controllers.QuotaController {
 	jsonView := views.NewJSONView()
 	mockQuotaSvc := &MockQuotaService{
 		SellerSummary: &dto.SellerQuotaSummaryResponse{SellerID: "s-1", AssignedQuota: 10, AvailableQuota: 5},
@@ -422,14 +441,16 @@ func TestQuotaController_Handlers(t *testing.T) {
 		DefaultCfg:    &dto.DefaultQuotaConfigResponse{DefaultPersonalQuota: 20},
 		Overview:      &dto.AdminQuotaOverviewResponse{DefaultPersonalQuota: 20},
 	}
-	ctrl := controllers.NewQuotaController(mockQuotaSvc, jsonView)
+	return controllers.NewQuotaController(mockQuotaSvc, jsonView)
+}
+
+func TestQuotaController_GetEndpoints(t *testing.T) {
+	ctrl := newTestQuotaController()
 
 	t.Run("GetSellerQuota Missing ID -> 400", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/quotas/seller/", nil)
 		rec := httptest.NewRecorder()
-
 		ctrl.GetSellerQuota(rec, req)
-
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("Expected status 400, got %d", rec.Code)
 		}
@@ -439,9 +460,7 @@ func TestQuotaController_Handlers(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/quotas/seller/s-1", nil)
 		req.SetPathValue("id", "s-1")
 		rec := httptest.NewRecorder()
-
 		ctrl.GetSellerQuota(rec, req)
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK for GetSellerQuota, got %d", rec.Code)
 		}
@@ -450,9 +469,7 @@ func TestQuotaController_Handlers(t *testing.T) {
 	t.Run("GetGlobalFreeQuota", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/quotas/free", nil)
 		rec := httptest.NewRecorder()
-
 		ctrl.GetGlobalFreeQuota(rec, req)
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK for GetGlobalFreeQuota, got %d", rec.Code)
 		}
@@ -461,9 +478,7 @@ func TestQuotaController_Handlers(t *testing.T) {
 	t.Run("GetDefaultQuotaConfig", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/quotas/config/default", nil)
 		rec := httptest.NewRecorder()
-
 		ctrl.GetDefaultQuotaConfig(rec, req)
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK for GetDefaultQuotaConfig, got %d", rec.Code)
 		}
@@ -472,9 +487,7 @@ func TestQuotaController_Handlers(t *testing.T) {
 	t.Run("GetAdminQuotaOverview", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/quotas/overview", nil)
 		rec := httptest.NewRecorder()
-
 		ctrl.GetAdminQuotaOverview(rec, req)
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK for GetAdminQuotaOverview, got %d", rec.Code)
 		}
@@ -483,13 +496,15 @@ func TestQuotaController_Handlers(t *testing.T) {
 	t.Run("GetExhaustedSellers", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/quotas/exhausted", nil)
 		rec := httptest.NewRecorder()
-
 		ctrl.GetExhaustedSellers(rec, req)
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK for GetExhaustedSellers, got %d", rec.Code)
 		}
 	})
+}
+
+func TestQuotaController_UpdateEndpoints(t *testing.T) {
+	ctrl := newTestQuotaController()
 
 	t.Run("UpdateQuota Personal", func(t *testing.T) {
 		sellerID := "s-1"
@@ -499,13 +514,10 @@ func TestQuotaController_Handlers(t *testing.T) {
 			AssignedQuota: 30,
 		}
 		body, _ := json.Marshal(upReq)
-
 		req := httptest.NewRequest(http.MethodPut, "/api/v1/quotas", bytes.NewReader(body))
 		req.Header.Set("X-User-ID", "admin-1")
 		rec := httptest.NewRecorder()
-
 		ctrl.UpdateQuota(rec, req)
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK for UpdateQuota, got %d", rec.Code)
 		}
@@ -517,13 +529,10 @@ func TestQuotaController_Handlers(t *testing.T) {
 			AssignedQuota: 500,
 		}
 		body, _ := json.Marshal(upReq)
-
 		req := httptest.NewRequest(http.MethodPut, "/api/v1/quotas", bytes.NewReader(body))
 		req.Header.Set("X-User-ID", "admin-1")
 		rec := httptest.NewRecorder()
-
 		ctrl.UpdateQuota(rec, req)
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK for UpdateQuota Free, got %d", rec.Code)
 		}
@@ -535,15 +544,129 @@ func TestQuotaController_Handlers(t *testing.T) {
 			DefaultPersonalQuota: &val40,
 		}
 		body, _ := json.Marshal(upReq)
-
 		req := httptest.NewRequest(http.MethodPut, "/api/v1/quotas/config/default", bytes.NewReader(body))
 		req.Header.Set("X-User-ID", "admin-1")
 		rec := httptest.NewRecorder()
-
 		ctrl.UpdateDefaultQuotaConfig(rec, req)
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK for UpdateDefaultQuotaConfig, got %d", rec.Code)
+		}
+	})
+
+	t.Run("UpdateQuota Negative Quota -> 400", func(t *testing.T) {
+		upReq := dto.UpdateQuotaRequest{
+			QuotaType:     models.QuotaTypePersonal,
+			AssignedQuota: -10,
+		}
+		body, _ := json.Marshal(upReq)
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/quotas", bytes.NewReader(body))
+		req.Header.Set("X-User-ID", "admin-1")
+		rec := httptest.NewRecorder()
+		ctrl.UpdateQuota(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400 Bad Request when assigned_quota is negative, got %d", rec.Code)
+		}
+	})
+}
+
+func TestTicketController_ServiceErrors(t *testing.T) {
+	jsonView := views.NewJSONView()
+	failSvc := &MockTicketService{
+		Err: models.NewBadRequestError("ticket action failed", nil),
+	}
+	ctrl := controllers.NewTicketController(failSvc, jsonView)
+
+	t.Run("ValidateTicket Service Error -> 400", func(t *testing.T) {
+		valReq := dto.ValidateTicketRequest{
+			FourDigitCode:  "1234",
+			ValidationType: models.ValidationTypeEntrada,
+		}
+		body, _ := json.Marshal(valReq)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/tickets/validate", bytes.NewReader(body))
+		req.Header.Set("X-User-ID", "operator-1")
+		rec := httptest.NewRecorder()
+		ctrl.ValidateTicket(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("Expected 400 for service error, got %d", rec.Code)
+		}
+	})
+
+	t.Run("AnnulTicket Service Error -> 400", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/tickets/t-1/annul", bytes.NewBufferString(`{"reason":"refund"}`))
+		req.SetPathValue("id", "t-1")
+		req.Header.Set("X-User-ID", "operator-1")
+		rec := httptest.NewRecorder()
+		ctrl.AnnulTicket(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("Expected 400 for service error, got %d", rec.Code)
+		}
+	})
+
+	t.Run("GetPrices Service Error -> 400", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/tickets/prices", nil)
+		rec := httptest.NewRecorder()
+		ctrl.GetPrices(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("Expected 400 for service error, got %d", rec.Code)
+		}
+	})
+
+	t.Run("UpdatePrice Service Error -> 400", func(t *testing.T) {
+		upReq := dto.UpdateTicketPriceRequest{
+			TicketType: models.TicketTypeSimple,
+			Price:      1200.0,
+		}
+		body, _ := json.Marshal(upReq)
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/tickets/prices", bytes.NewReader(body))
+		req.Header.Set("X-User-ID", "admin-1")
+		rec := httptest.NewRecorder()
+		ctrl.UpdatePrice(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("Expected 400 for service error, got %d", rec.Code)
+		}
+	})
+}
+
+func TestQuotaController_ServiceErrors(t *testing.T) {
+	jsonView := views.NewJSONView()
+	failSvc := &MockQuotaService{
+		Err: models.NewBadRequestError("quota operation failed", nil),
+	}
+	ctrl := controllers.NewQuotaController(failSvc, jsonView)
+
+	t.Run("GetGlobalFreeQuota Error -> 400", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/quotas/free", nil)
+		rec := httptest.NewRecorder()
+		ctrl.GetGlobalFreeQuota(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("Expected 400 for service error, got %d", rec.Code)
+		}
+	})
+
+	t.Run("GetDefaultQuotaConfig Error -> 400", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/quotas/config/default", nil)
+		rec := httptest.NewRecorder()
+		ctrl.GetDefaultQuotaConfig(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("Expected 400 for service error, got %d", rec.Code)
+		}
+	})
+
+	t.Run("GetAdminQuotaOverview Error -> 400", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/quotas/overview", nil)
+		rec := httptest.NewRecorder()
+		ctrl.GetAdminQuotaOverview(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("Expected 400 for service error, got %d", rec.Code)
+		}
+	})
+
+	t.Run("GetExhaustedSellers Error -> 400", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/quotas/exhausted", nil)
+		rec := httptest.NewRecorder()
+		ctrl.GetExhaustedSellers(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("Expected 400 for service error, got %d", rec.Code)
 		}
 	})
 }

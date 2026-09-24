@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"backend/internal/controllers"
 	"backend/internal/middlewares"
@@ -47,10 +48,12 @@ func SetupRoutes(cfg RouterConfig) http.Handler {
 func registerPublicRoutes(mux *http.ServeMux, cfg RouterConfig, unavailableHandler http.Handler) {
 	mux.HandleFunc("GET /health", cfg.HealthController.Health)
 
+	publicLimiter := middlewares.PublicTicketRateLimiter(1*time.Minute, 10, 1*time.Minute, cfg.JSONView)
+
 	if cfg.TicketController != nil {
-		mux.HandleFunc("GET /api/tickets/public/{token}", cfg.TicketController.GetPublicTicket)
+		mux.Handle("GET /api/tickets/public/{token}", publicLimiter(http.HandlerFunc(cfg.TicketController.GetPublicTicket)))
 	} else {
-		mux.Handle("GET /api/tickets/public/{token}", unavailableHandler)
+		mux.Handle("GET /api/tickets/public/{token}", publicLimiter(unavailableHandler))
 	}
 
 	if cfg.AuthController != nil {

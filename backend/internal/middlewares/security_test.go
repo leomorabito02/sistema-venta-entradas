@@ -141,6 +141,17 @@ func TestValidateAntiCSRF(t *testing.T) {
 			t.Errorf("Expected status 200 OK, got %d", rec.Code)
 		}
 	})
+
+	t.Run("GET method bypasses CSRF check", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/tickets", nil)
+		rec := httptest.NewRecorder()
+
+		csrfMW.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("Expected status 200 OK for GET request, got %d", rec.Code)
+		}
+	})
 }
 
 func TestRequestLogger(t *testing.T) {
