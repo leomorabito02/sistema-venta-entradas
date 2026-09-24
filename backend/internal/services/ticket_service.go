@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"strings"
 	"time"
 
 	"backend/internal/cache"
@@ -85,18 +86,50 @@ func (s *ticketService) CreateTicket(ctx context.Context, sellerID string, req *
 		return nil, models.NewInternalError("Failed to generate public token", err)
 	}
 
+	ticket, buyer, err := s.createTicketWithRetry(ctx, sellerID, req, publicToken, pricePaid)
+	if err != nil {
+		return nil, err
+	}
+
+	s.cacheService.InvalidatePrefix(ctx, cacheKeyTicketsList)
+
+	ticket.Buyer = buyer
+	ticket.Seller = seller
+	return s.toTicketResponse(ticket), nil
+}
+
+func (s *ticketService) createTicketWithRetry(ctx context.Context, sellerID string, req *dto.CreateTicketRequest, publicToken string, pricePaid float64) (*models.Ticket, *models.Buyer, error) {
+	const maxRetries = 3
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		ticket, buyer, retryable, err := s.attemptCreateTicketTx(ctx, sellerID, req, publicToken, pricePaid)
+		if err != nil {
+			if retryable && attempt < maxRetries {
+				continue
+			}
+			return nil, nil, err
+		}
+		return ticket, buyer, nil
+	}
+
+	return nil, nil, models.NewInternalError("Failed to create ticket record after retries", nil)
+}
+
+func (s *ticketService) attemptCreateTicketTx(ctx context.Context, sellerID string, req *dto.CreateTicketRequest, publicToken string, pricePaid float64) (*models.Ticket, *models.Buyer, bool, error) {
 	fourDigitCode, err := s.generateUnique4DigitCode(ctx)
 	if err != nil {
-		return nil, models.NewInternalError("Failed to generate unique 4-digit code", err)
+		return nil, nil, false, models.NewInternalError("Failed to generate unique 4-digit code", err)
 	}
 
 	tx, err := s.ticketRepo.BeginTx(ctx)
 	if err != nil {
-		return nil, models.NewInternalError(errFailedToBeginTx, err)
+		return nil, nil, false, models.NewInternalError(errFailedToBeginTx, err)
 	}
-	if tx != nil {
-		defer tx.Rollback()
-	}
+	defer func() {
+		if tx != nil {
+			tx.Rollback()
+		}
+	}()
 
 	buyer := &models.Buyer{
 		FirstName: req.FirstName,
@@ -105,12 +138,12 @@ func (s *ticketService) CreateTicket(ctx context.Context, sellerID string, req *
 		Email:     req.Email,
 	}
 	if err := s.ticketRepo.CreateBuyerTx(ctx, tx, buyer); err != nil {
-		return nil, models.NewInternalError("Failed to create buyer record", err)
+		return nil, nil, false, models.NewInternalError("Failed to create buyer record", err)
 	}
 
 	quotaSource, err := s.resolveQuotaSourceTx(ctx, tx, sellerID, req.SaleSource, req.QuotaSource)
 	if err != nil {
-		return nil, err
+		return nil, nil, false, err
 	}
 
 	finalPricePaid := pricePaid
@@ -131,20 +164,18 @@ func (s *ticketService) CreateTicket(ctx context.Context, sellerID string, req *
 	}
 
 	if err := s.ticketRepo.CreateTicketTx(ctx, tx, ticket); err != nil {
-		return nil, models.NewInternalError("Failed to create ticket record", err)
+		isConstraint := strings.Contains(err.Error(), "23505") || strings.Contains(err.Error(), "unique constraint")
+		return nil, nil, isConstraint, models.NewInternalError("Failed to create ticket record", err)
 	}
 
 	if tx != nil {
 		if err := tx.Commit(); err != nil {
-			return nil, models.NewInternalError("Failed to commit ticket transaction", err)
+			return nil, nil, false, models.NewInternalError("Failed to commit ticket transaction", err)
 		}
 	}
-
-	s.cacheService.InvalidatePrefix(ctx, cacheKeyTicketsList)
-
-	ticket.Buyer = buyer
-	ticket.Seller = seller
-	return s.toTicketResponse(ticket), nil
+	
+	tx = nil // Prevents defer from rolling back a committed transaction
+	return ticket, buyer, false, nil
 }
 
 func (s *ticketService) GetPublicTicket(ctx context.Context, token string) (*dto.TicketPublicResponse, error) {

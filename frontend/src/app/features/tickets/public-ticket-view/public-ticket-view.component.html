@@ -125,7 +125,7 @@
       </div>
 
       <div class="info-item neu-card">
-        <span class="info-label"><svg class="icon" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> Vendedor / Emisor:</span>
+        <span class="info-label"><svg class="icon" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> Vendedor:</span>
         <strong class="info-value">{{ ticket()?.seller_name }}</strong>
       </div>
 
@@ -137,7 +137,7 @@
       </div>
 
       <div class="info-item neu-card">
-        <span class="info-label"><svg class="icon" viewBox="0 0 24 24"><path d="M3 11h18"/><path d="M5 11C5 7.13 8.13 4 12 4s7 3.13 7 7"/><path d="M4 15h16a1 1 0 0 1 1 1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1z"/></svg> Almuerzo / Comida:</span>
+        <span class="info-label"><svg class="icon" viewBox="0 0 24 24"><path d="M3 11h18"/><path d="M5 11C5 7.13 8.13 4 12 4s7 3.13 7 7"/><path d="M4 15h16a1 1 0 0 1 1 1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1z"/></svg> Comida:</span>
         <strong class="info-value" [class.text-comida]="ticket()?.includes_food">
           {{ ticket()?.includes_food ? 'Incluye 1 Choripán' : 'No incluye choripán' }}
         </strong>
@@ -158,12 +158,12 @@
     <div class="instructions-box neu-card">
       <h3>Información del Evento</h3>
       <ul>
-        <li>Guarda o toma una captura de pantalla de este bono digital.</li>
+        <li>Guarda el enlace de tu entrada o toma una captura de pantalla.</li>
         <li *ngIf="ticket()?.status === 'VENDIDO'">
-          Dicta el código <strong>{{ ticket()?.four_digit_code }}</strong> en el ingreso.
+          Dicta el código <strong>{{ ticket()?.four_digit_code }}</strong> o muestra el QR en el ingreso.
         </li>
         <li *ngIf="ticket()?.status === 'USADO_ENTRADA' && ticket()?.ticket_type === 'CON_COMIDA'">
-          Dicta el mismo código <strong>{{ ticket()?.four_digit_code }}</strong> en la barra de comida.
+          Dicta el mismo código <strong>{{ ticket()?.four_digit_code }}</strong> en la barra de comida para retirar tu choripán.
         </li>
         <li>Este bono es personal e intransferible.</li>
       </ul>

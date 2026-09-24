@@ -76,7 +76,7 @@ if ! command -v psql >/dev/null 2>&1; then
 fi
 
 # ─── Paso 0: Health Check ────────────────────────────────────────────────────
-echo "▶ [0/5] Health check..."
+echo "▶ [0/6] Health check..."
 STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/health")
 if [ "$STATUS" != "200" ]; then
   echo "✗ Backend no responde en $BASE_URL/health (HTTP $STATUS). Aborting."
@@ -87,14 +87,14 @@ echo "  ✓ Backend healthy"
 # ─── Paso 1: Crear fixtures vía API (paralelo) ───────────────────────────────
 echo ""
 if [ -n "${SKIP_SETUP:-}" ]; then
-  echo "▶ [1/5] Skipping fixture setup (SKIP_SETUP is set)"
+  echo "▶ [1/6] Skipping fixture setup (SKIP_SETUP is set)"
   if [ ! -f "$SCRIPT_DIR/fixtures/seed_tokens.json" ]; then
     echo "✗ SKIP_SETUP is set but fixtures/seed_tokens.json does not exist. Aborting."
     exit 1
   fi
 else
   SETUP_WORKERS="${SETUP_WORKERS:-10}"
-  echo "▶ [1/5] Creating ${FIXTURE_COUNT} test tickets (${SETUP_WORKERS} parallel workers)..."
+  echo "▶ [1/6] Creating ${FIXTURE_COUNT} test tickets (${SETUP_WORKERS} parallel workers)..."
 
   SETUP_BIN="$SCRIPT_DIR/setup_api/setup_api"
 
@@ -145,7 +145,7 @@ fi
 
 # ─── Paso 2: Escenario 1 — Validate Entry (60 VUs) ───────────────────────────
 echo ""
-echo "▶ [2/5] Escenario 1: Validate Entry — 60 VUs / 30s..."
+echo "▶ [2/6] Escenario 1: Validate Entry — 60 VUs / 30s..."
 k6 run \
   -e BASE_URL="$BASE_URL" \
   -e JWT_TOKEN="$JWT_TOKEN" \
@@ -156,7 +156,7 @@ echo "  ✓ Done"
 # ─── Paso 3: Escenario 2 — Validate Food Concurrent ──────────────────────────
 echo ""
 if [ -n "$FOOD_TOKEN" ]; then
-  echo "▶ [3/5] Escenario 2: Validate Food Concurrent — 10 VUs mismo ticket..."
+  echo "▶ [3/6] Escenario 2: Validate Food Concurrent — 10 VUs mismo ticket..."
   k6 run \
     -e BASE_URL="$BASE_URL" \
     -e JWT_TOKEN="$JWT_TOKEN" \
@@ -165,13 +165,13 @@ if [ -n "$FOOD_TOKEN" ]; then
     "$SCRIPT_DIR/scripts/validate_food.js"
   echo "  ✓ Done"
 else
-  echo "▶ [3/5] Escenario 2 SKIPPED — no CON_COMIDA ticket in USADO_ENTRADA state available"
+  echo "▶ [3/6] Escenario 2 SKIPPED — no CON_COMIDA ticket in USADO_ENTRADA state available"
   echo "  Hint: Increase FIXTURE_COUNT or set FOOD_TOKEN manually"
 fi
 
 # ─── Paso 4: Escenario 3 — Create Ticket (30 VUs) ────────────────────────────
 echo ""
-echo "▶ [4/5] Escenario 3: Create Ticket — 30 VUs / 30s..."
+echo "▶ [4/6] Escenario 3: Create Ticket — 30 VUs / 30s..."
 k6 run \
   -e BASE_URL="$BASE_URL" \
   -e JWT_TOKEN="$JWT_TOKEN" \
@@ -181,11 +181,23 @@ echo "  ✓ Done"
 
 # ─── Paso 5: Escenario 4 — Spike Public ──────────────────────────────────────
 echo ""
-echo "▶ [5/5] Escenario 4: Spike Test — 0→200 VUs en 10s..."
+echo "▶ [5/6] Escenario 4: Spike Test — 0→200 VUs en 10s..."
 k6 run \
   -e BASE_URL="$BASE_URL" \
   --out json="$RESULTS_DIR/spike_public.json" \
   "$SCRIPT_DIR/scripts/spike_public.js"
+echo "  ✓ Done"
+
+# ─── Paso 6: Escenario Día del Evento — 60s integrado ───────────────────────
+echo ""
+echo "▶ [6/6] Escenario Día del Evento — 10 vendedores / 400 ventas / 60s..."
+echo "  Incluye: 2 validaciones de entrada + 2 de comida por ticket"
+echo "           5 GETs públicos por venta y por cada validación"
+k6 run \
+  -e BASE_URL="$BASE_URL" \
+  -e JWT_TOKEN="$JWT_TOKEN" \
+  --out json="$RESULTS_DIR/event_day.json" \
+  "$SCRIPT_DIR/scripts/event_day.js"
 echo "  ✓ Done"
 
 # ─── Verificación Post-Test: Unicidad four_digit_code ────────────────────────
@@ -204,6 +216,47 @@ if command -v psql >/dev/null 2>&1; then
   fi
 else
   echo "  ⚠ 'psql' no instalado. Se omite la verificación post-test en DB."
+fi
+
+# ─── Limpieza: borrar registros generados por el load test ───────────────────
+echo ""
+echo "▶ Post-test: Limpieza de registros de load test en DB..."
+if command -v psql >/dev/null 2>&1; then
+  # Borrar en orden correcto respetando FK: validaciones → tickets
+  # Se identifican por el patrón de email usado en setup_api y en event_day.js
+  CLEANUP_SQL="
+    BEGIN;
+
+    DELETE FROM ticket_validations
+    WHERE ticket_id IN (
+      SELECT id FROM tickets
+      WHERE email LIKE '%@test.local'
+        AND (email LIKE 'load.test.%' OR email LIKE 'event.test.%')
+    );
+
+    DELETE FROM tickets
+    WHERE email LIKE '%@test.local'
+      AND (email LIKE 'load.test.%' OR email LIKE 'event.test.%');
+
+    COMMIT;
+  "
+
+  DELETED=$(psql "$DATABASE_URL" -t -c "
+    SELECT COUNT(*) FROM tickets
+    WHERE email LIKE '%@test.local'
+      AND (email LIKE 'load.test.%' OR email LIKE 'event.test.%');
+  " 2>/dev/null | tr -d ' ')
+
+  echo "  Registros a eliminar: ${DELETED:-?} tickets (+ sus validaciones)"
+
+  psql "$DATABASE_URL" -c "$CLEANUP_SQL" >/dev/null 2>&1 && \
+    echo "  ✓ Limpieza completada" || \
+    echo "  ✗ Error en limpieza. Ejecutar manualmente si es necesario."
+else
+  echo "  ⚠ 'psql' no instalado. Limpieza de DB omitida."
+  echo "    Ejecutar manualmente:"
+  echo "    DELETE FROM ticket_validations WHERE ticket_id IN (SELECT id FROM tickets WHERE email LIKE '%@test.local');"
+  echo "    DELETE FROM tickets WHERE email LIKE '%@test.local' AND (email LIKE 'load.test.%' OR email LIKE 'event.test.%');"
 fi
 
 echo ""

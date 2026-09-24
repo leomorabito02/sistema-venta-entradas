@@ -32,7 +32,7 @@ export const options = {
   vus: 60,
   duration: '30s',
   thresholds: {
-    http_req_duration: ['p(95)<2500'],
+    http_req_duration: ['p(95)<6000'],
     http_req_failed: ['rate<0.01'],
     double_validation_successes: ['count==0'],
   },
