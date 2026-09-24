@@ -14,7 +14,8 @@ describe('LoginComponent', () => {
   let routerSpy: jasmine.SpyObj<Router>;
 
   beforeEach(async () => {
-    authServiceSpy = jasmine.createSpyObj('AuthService', ['googleLogin', 'logout', 'isAuthenticated']);
+    authServiceSpy = jasmine.createSpyObj('AuthService', ['googleLogin', 'logout', 'isAuthenticated', 'isInitializing']);
+    authServiceSpy.isInitializing.and.returnValue(false);
     firebaseAuthServiceSpy = jasmine.createSpyObj('FirebaseAuthService', ['signInWithGoogle']);
     routerSpy = jasmine.createSpyObj('Router', ['navigate', 'navigateByUrl']);
 
