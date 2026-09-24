@@ -1,10 +1,84 @@
-<div class="skeleton-card neu-card">
-  <div class="skeleton-box skeleton-title"></div>
-  <div class="skeleton-box skeleton-text"></div>
-  <div class="skeleton-box skeleton-block"></div>
-  <div class="skeleton-grid">
-    <div class="skeleton-box skeleton-grid-item"></div>
-    <div class="skeleton-box skeleton-grid-item"></div>
-    <div class="skeleton-box skeleton-grid-item"></div>
+<ng-container [ngSwitch]="type">
+  <!-- DASHBOARD SKELETON -->
+  <div *ngSwitchCase="'dashboard'" class="sk-dashboard">
+    <div class="sk-grid-4">
+      <div class="skeleton-box sk-stat-card neu-card"></div>
+      <div class="skeleton-box sk-stat-card neu-card"></div>
+      <div class="skeleton-box sk-stat-card neu-card"></div>
+      <div class="skeleton-box sk-stat-card neu-card"></div>
+    </div>
+    <div class="skeleton-box sk-full-card neu-card"></div>
+    <div class="skeleton-box sk-full-card neu-card"></div>
   </div>
-</div>
+
+  <!-- TICKETS SKELETON -->
+  <div *ngSwitchCase="'tickets'" class="sk-tickets">
+    <div class="sk-header-row">
+      <div class="skeleton-box sk-title"></div>
+    </div>
+    <div class="skeleton-box sk-search-bar"></div>
+    <div class="sk-table neu-card">
+      <div class="skeleton-box sk-table-row"></div>
+      <div class="skeleton-box sk-table-row"></div>
+      <div class="skeleton-box sk-table-row"></div>
+      <div class="skeleton-box sk-table-row"></div>
+    </div>
+  </div>
+
+  <!-- PUBLIC TICKET SKELETON -->
+  <div *ngSwitchCase="'public-ticket'" class="sk-public-ticket">
+    <div class="neu-card sk-ticket-card">
+      <div class="skeleton-box sk-qr"></div>
+      <div class="skeleton-box sk-text-md"></div>
+      <div class="skeleton-box sk-text-lg"></div>
+      <div class="sk-details-grid">
+         <div class="skeleton-box sk-detail-item"></div>
+         <div class="skeleton-box sk-detail-item"></div>
+         <div class="skeleton-box sk-detail-item"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VALIDATORS SKELETON -->
+  <div *ngSwitchCase="'validators'" class="sk-validators">
+    <div class="sk-header-tabs neu-card">
+      <div class="skeleton-box sk-tab"></div>
+      <div class="skeleton-box sk-tab"></div>
+      <div class="skeleton-box sk-tab"></div>
+    </div>
+    <div class="sk-validator-body neu-card">
+      <div class="skeleton-box sk-numpad-display"></div>
+      <div class="sk-numpad-grid">
+        <div class="skeleton-box sk-numpad-btn" *ngFor="let i of [1,2,3,4,5,6,7,8,9,10,11,12]"></div>
+      </div>
+      <div class="skeleton-box sk-btn-full"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN USERS SKELETON -->
+  <div *ngSwitchCase="'admin-users'" class="sk-admin">
+    <div class="sk-header-row">
+      <div class="skeleton-box sk-title"></div>
+      <div class="skeleton-box sk-btn-sm"></div>
+    </div>
+    <div class="sk-table neu-card">
+      <div class="skeleton-box sk-table-row"></div>
+      <div class="skeleton-box sk-table-row"></div>
+      <div class="skeleton-box sk-table-row"></div>
+      <div class="skeleton-box sk-table-row"></div>
+      <div class="skeleton-box sk-table-row"></div>
+    </div>
+  </div>
+
+  <!-- GENERIC SKELETON -->
+  <div *ngSwitchDefault class="skeleton-card neu-card">
+    <div class="skeleton-box skeleton-title"></div>
+    <div class="skeleton-box skeleton-text"></div>
+    <div class="skeleton-box skeleton-block"></div>
+    <div class="skeleton-grid">
+      <div class="skeleton-box skeleton-grid-item"></div>
+      <div class="skeleton-box skeleton-grid-item"></div>
+      <div class="skeleton-box skeleton-grid-item"></div>
+    </div>
+  </div>
+</ng-container>

@@ -1,7 +1,8 @@
-<div [class.has-bottom-nav]="authService.isAuthenticated()">
+<div class="app-wrapper" [class.has-bottom-nav]="authService.isAuthenticated()">
   <app-navbar></app-navbar>
   <main class="main-content">
-    <router-outlet></router-outlet>
+    <app-skeleton-loader *ngIf="isNavigating()"></app-skeleton-loader>
+    <router-outlet *ngIf="!isNavigating()"></router-outlet>
   </main>
   <app-footer></app-footer>
   <app-toast-container></app-toast-container>
@@ -25,4 +26,3 @@
     (ticketCreated)="onTicketCreated()">
   </app-quick-sale-drawer>
 </div>
-

@@ -1,5 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
+
+export type SkeletonType = 'dashboard' | 'tickets' | 'public-ticket' | 'validators' | 'admin-users' | 'generic';
 
 @Component({
   selector: 'app-skeleton-loader',
@@ -8,4 +10,6 @@ import { CommonModule } from '@angular/common';
   templateUrl: './skeleton-loader.component.html',
   styleUrl: './skeleton-loader.component.css'
 })
-export class SkeletonLoaderComponent {}
+export class SkeletonLoaderComponent {
+  @Input() type: SkeletonType = 'generic';
+}

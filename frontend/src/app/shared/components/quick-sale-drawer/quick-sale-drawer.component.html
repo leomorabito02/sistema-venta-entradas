@@ -81,13 +81,13 @@
                   class="pill-btn" 
                   [class.active]="ticketType === 'SIMPLE'"
                   (click)="selectTicketType('SIMPLE')">
-            <svg class="icon" viewBox="0 0 24 24"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/></svg> Simple
+            <svg class="icon" viewBox="0 0 24 24"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/></svg> Simple <span *ngIf="priceSimple() !== null" class="price-badge">(${{ priceSimple() | number:'1.0-0' }})</span>
           </button>
           <button type="button" 
                   class="pill-btn" 
                   [class.active]="ticketType === 'CON_COMIDA'"
                   (click)="selectTicketType('CON_COMIDA')">
-            <svg class="icon" viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg> Con Comida
+            <svg class="icon" viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg> Con Comida <span *ngIf="priceConComida() !== null" class="price-badge">(${{ priceConComida() | number:'1.0-0' }})</span>
           </button>
         </div>
       </div>

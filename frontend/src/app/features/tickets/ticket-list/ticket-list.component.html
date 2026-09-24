@@ -118,7 +118,7 @@
   </div>
 
   <!-- Loader -->
-  <app-skeleton-loader *ngIf="loading()"></app-skeleton-loader>
+  <app-skeleton-loader *ngIf="loading()" type="tickets"></app-skeleton-loader>
 
   <!-- Tabla de Tickets -->
   <div *ngIf="!loading() && filteredTickets().length === 0" class="neu-card empty-card">

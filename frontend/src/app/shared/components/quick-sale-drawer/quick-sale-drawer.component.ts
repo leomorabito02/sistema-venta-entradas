@@ -44,6 +44,9 @@ export class QuickSaleDrawerComponent implements OnChanges {
   freeQuotaRemaining = signal<number | null>(null);
   freeQuotaTotal = signal<number | null>(null);
 
+  priceSimple = signal<number | null>(null);
+  priceConComida = signal<number | null>(null);
+
   getEffectiveCountryCode(): string {
     if (this.countryCode === 'custom') {
       return (this.customCountryCode || '').replace(/\D/g, '');
@@ -54,7 +57,24 @@ export class QuickSaleDrawerComponent implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['isOpen']?.currentValue === true) {
       this.loadQuotaSummary();
+      this.loadTicketPrices();
     }
+  }
+
+  loadTicketPrices(): void {
+    this.apiService.getTicketPrices().subscribe({
+      next: (res) => {
+        if (res.success && res.data) {
+          for (const item of res.data) {
+            if (item.ticket_type === 'SIMPLE') {
+              this.priceSimple.set(item.price);
+            } else if (item.ticket_type === 'CON_COMIDA') {
+              this.priceConComida.set(item.price);
+            }
+          }
+        }
+      }
+    });
   }
 
   loadQuotaSummary(): void {

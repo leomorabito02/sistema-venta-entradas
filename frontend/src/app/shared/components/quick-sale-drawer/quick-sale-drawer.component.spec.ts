@@ -38,11 +38,20 @@ describe('QuickSaleDrawerComponent', () => {
   };
 
   beforeEach(async () => {
-    apiServiceSpy = jasmine.createSpyObj('ApiService', ['getSellerQuota', 'createTicket', 'validateTicket']);
+    apiServiceSpy = jasmine.createSpyObj('ApiService', ['getSellerQuota', 'createTicket', 'validateTicket', 'getTicketPrices']);
     authServiceSpy = jasmine.createSpyObj('AuthService', ['currentUser']);
     toastServiceSpy = jasmine.createSpyObj('ToastService', ['success', 'warning', 'error']);
 
     authServiceSpy.currentUser.and.returnValue(mockUser);
+    apiServiceSpy.getTicketPrices.and.returnValue(
+      of({
+        success: true,
+        data: [
+          { id: '1', ticket_type: 'SIMPLE', price: 3000, updated_at: '2026-09-01T00:00:00Z' },
+          { id: '2', ticket_type: 'CON_COMIDA', price: 5000, updated_at: '2026-09-01T00:00:00Z' }
+        ]
+      })
+    );
     apiServiceSpy.getSellerQuota.and.returnValue(
       of({
         success: true,
