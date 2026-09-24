@@ -392,3 +392,69 @@
   font-weight: 800;
   color: var(--color-bordo, #7A001E);
 }
+
+@media print {
+  @page {
+    margin: 0.5cm;
+    size: portrait;
+  }
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  app-footer, footer, .footer {
+    display: none !important;
+  }
+  .public-ticket-container {
+    max-width: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .ticket-card {
+    padding: 1rem !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    box-shadow: none !important;
+    border: 2px solid var(--color-gold, #D4AF37) !important;
+  }
+  .ticket-actions {
+    display: none !important;
+  }
+  .code-qr-section {
+    padding: 1rem !important;
+    margin-bottom: 1rem !important;
+  }
+  .qr-box {
+    width: 180px !important;
+    height: 180px !important;
+  }
+  .qr-code-img {
+    width: 160px !important;
+    height: 160px !important;
+  }
+  .four-code {
+    font-size: 2.5rem !important;
+  }
+  .status-banner {
+    padding: 0.75rem !important;
+    margin-bottom: 1rem !important;
+  }
+  .info-grid {
+    gap: 0.5rem !important;
+    margin-bottom: 1rem !important;
+  }
+  .info-item {
+    padding: 0.5rem !important;
+  }
+  .instructions-box {
+    padding: 0.75rem !important;
+    margin-bottom: 0 !important;
+  }
+  .ticket-header-banner {
+    margin-bottom: 1rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  .ticket-stub-divider {
+    margin: 1rem -1rem !important;
+  }
+}

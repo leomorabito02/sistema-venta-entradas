@@ -63,14 +63,14 @@
       <div class="status-text">
         <strong class="status-title">
           {{
-            ticket()?.status === 'VENDIDO' ? 'BONO ACTIVO (PENDIENTE DE INGRESO)' :
-            ticket()?.status === 'USADO_ENTRADA' ? (ticket()?.ticket_type === 'CON_COMIDA' ? 'ENTRADA VALIDADA (PENDIENTE COMIDA)' : 'ENTRADA VALIDADA') :
-            ticket()?.status === 'USADO_COMIDA' ? 'BONO UTILIZADO COMPLETAMENTE' : 'BONO ANULADO'
+            ticket()?.status === 'VENDIDO' ? 'Mostrá el QR en el ingreso' :
+            ticket()?.status === 'USADO_ENTRADA' ? (ticket()?.ticket_type === 'CON_COMIDA' ? '¡ENTRASTE! PODÉS RETIRAR TU COMIDA' : 'GRACIAS POR COLABORAR!') :
+            ticket()?.status === 'USADO_COMIDA' ? '¡DISFRUTÁ TU COMIDA!' : 'BONO ANULADO'
           }}
         </strong>
         <span class="status-sub">
           <ng-container *ngIf="ticket()?.status === 'VENDIDO'">
-            Presenta el código de 4 dígitos o escanea el QR en el ingreso.
+            En el ingreso a la peña, mostrá éste código QR o dictá el número en el puesto de entrada.
           </ng-container>
           <ng-container *ngIf="ticket()?.status === 'USADO_ENTRADA'">
             <ng-container *ngIf="ticket()?.ticket_type === 'CON_COMIDA'">
@@ -84,7 +84,7 @@
             ¡Muchas gracias por colaborar con el Seminario!
           </ng-container>
           <ng-container *ngIf="ticket()?.status === 'ANULADO'">
-            Bono anulado. No válido para ingreso ni comida.
+            Bono anulado. No será admitido en la peña .
           </ng-container>
         </span>
       </div>
@@ -93,15 +93,13 @@
     <!-- Code & QR Section -->
     <div class="code-qr-section neu-card">
       <div class="code-box">
-        <span class="code-label">CÓDIGO DE VALIDACIÓN (4 DÍGITOS)</span>
+        <span class="code-label">CÓDIGO DE VALIDACIÓN</span>
         <div class="four-code">{{ ticket()?.four_digit_code }}</div>
-        <p class="code-hint">Dicta este código de 4 dígitos o escanea el QR</p>
       </div>
 
       <div class="qr-box">
         <div *ngIf="qrDataUrl()" class="qr-img-wrapper">
           <img [src]="qrDataUrl()" alt="Código QR de Validación (Código: {{ ticket()?.four_digit_code }})" class="qr-code-img">
-          <span class="qr-text">Código QR Oficial ({{ ticket()?.four_digit_code }})</span>
         </div>
         <div *ngIf="!qrDataUrl()" class="qr-placeholder">
           <span class="qr-icon"><svg class="icon" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span>
