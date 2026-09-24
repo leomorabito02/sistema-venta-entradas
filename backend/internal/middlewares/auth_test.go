@@ -44,7 +44,7 @@ func (m *MockUserRepoForAuth) SeedInitialAdmin(ctx context.Context, email, name 
 	return nil
 }
 
-func TestFirebaseAuthMiddleware(t *testing.T) {
+func setupAuthMiddlewareTest(t *testing.T) (http.Handler, *MockUserRepoForAuth) {
 	t.Setenv("JWT_SECRET", "test-secret-key-32-chars-long!!")
 	jsonView := views.NewJSONView()
 
@@ -81,24 +81,50 @@ func TestFirebaseAuthMiddleware(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
+	return mw, userRepo
+}
+
+func TestFirebaseAuthMiddleware_InvalidHeaders(t *testing.T) {
+	mw, _ := setupAuthMiddlewareTest(t)
+
 	t.Run("Missing Authorization Header -> 401", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
 		rec := httptest.NewRecorder()
-
 		mw.ServeHTTP(rec, req)
-
 		if rec.Code != http.StatusUnauthorized {
 			t.Errorf("Expected status 401, got %d", rec.Code)
 		}
 	})
 
+	t.Run("Invalid Authorization Header Prefix -> 401", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+		req.Header.Set("Authorization", "Basic some-credentials")
+		rec := httptest.NewRecorder()
+		mw.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("Expected status 401 for non-Bearer auth header, got %d", rec.Code)
+		}
+	})
+
+	t.Run("Malformed Token -> 401", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
+		req.Header.Set("Authorization", "Bearer malformed.jwt.token")
+		rec := httptest.NewRecorder()
+		mw.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("Expected status 401 for malformed JWT, got %d", rec.Code)
+		}
+	})
+}
+
+func TestFirebaseAuthMiddleware_ValidAndStatusChecks(t *testing.T) {
+	mw, userRepo := setupAuthMiddlewareTest(t)
+
 	t.Run("X-User-ID Fallback Header -> 200 OK", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
 		req.Header.Set("X-User-ID", "active-user-id")
 		rec := httptest.NewRecorder()
-
 		mw.ServeHTTP(rec, req)
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK for X-User-ID fallback, got %d", rec.Code)
 		}
@@ -107,13 +133,10 @@ func TestFirebaseAuthMiddleware(t *testing.T) {
 	t.Run("Valid Access Token -> 200 OK", func(t *testing.T) {
 		activeUser := userRepo.Users["active-user-id"]
 		tokenStr, _, _ := security.GenerateAccessToken(activeUser)
-
 		req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
 		req.Header.Set("Authorization", "Bearer "+tokenStr)
 		rec := httptest.NewRecorder()
-
 		mw.ServeHTTP(rec, req)
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK, got %d", rec.Code)
 		}
@@ -122,13 +145,10 @@ func TestFirebaseAuthMiddleware(t *testing.T) {
 	t.Run("PENDING User -> 403 Forbidden", func(t *testing.T) {
 		pendingUser := userRepo.Users["pending-user-id"]
 		tokenStr, _, _ := security.GenerateAccessToken(pendingUser)
-
 		req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
 		req.Header.Set("Authorization", "Bearer "+tokenStr)
 		rec := httptest.NewRecorder()
-
 		mw.ServeHTTP(rec, req)
-
 		if rec.Code != http.StatusForbidden {
 			t.Errorf("Expected status 403 Forbidden for PENDING user, got %d", rec.Code)
 		}
@@ -137,13 +157,10 @@ func TestFirebaseAuthMiddleware(t *testing.T) {
 	t.Run("DISABLED User -> 403 Forbidden", func(t *testing.T) {
 		disabledUser := userRepo.Users["disabled-user-id"]
 		tokenStr, _, _ := security.GenerateAccessToken(disabledUser)
-
 		req := httptest.NewRequest(http.MethodGet, "/api/protected", nil)
 		req.Header.Set("Authorization", "Bearer "+tokenStr)
 		rec := httptest.NewRecorder()
-
 		mw.ServeHTTP(rec, req)
-
 		if rec.Code != http.StatusForbidden {
 			t.Errorf("Expected status 403 Forbidden for DISABLED user, got %d", rec.Code)
 		}
@@ -162,9 +179,7 @@ func TestRequireRole(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/admin", nil)
 		ctx := context.WithValue(req.Context(), middlewares.UserContextKey, adminUser)
 		rec := httptest.NewRecorder()
-
 		mw.ServeHTTP(rec, req.WithContext(ctx))
-
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK, got %d", rec.Code)
 		}
@@ -175,9 +190,7 @@ func TestRequireRole(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/admin", nil)
 		ctx := context.WithValue(req.Context(), middlewares.UserContextKey, sellerUser)
 		rec := httptest.NewRecorder()
-
 		mw.ServeHTTP(rec, req.WithContext(ctx))
-
 		if rec.Code != http.StatusForbidden {
 			t.Errorf("Expected status 403 Forbidden, got %d", rec.Code)
 		}
@@ -186,11 +199,23 @@ func TestRequireRole(t *testing.T) {
 	t.Run("No user in context unauthorized -> 401 Unauthorized", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/admin", nil)
 		rec := httptest.NewRecorder()
-
 		mw.ServeHTTP(rec, req)
-
 		if rec.Code != http.StatusUnauthorized {
 			t.Errorf("Expected status 401 Unauthorized, got %d", rec.Code)
+		}
+	})
+
+	t.Run("Admin user allowed on Seller role endpoint -> 200 OK", func(t *testing.T) {
+		sellerMW := middlewares.RequireRole(models.RoleSeller, jsonView)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+		adminUser := &models.User{ID: "admin-1", Role: models.RoleAdmin, Status: models.StatusActive}
+		req := httptest.NewRequest(http.MethodGet, "/api/seller", nil)
+		ctx := context.WithValue(req.Context(), middlewares.UserContextKey, adminUser)
+		rec := httptest.NewRecorder()
+		sellerMW.ServeHTTP(rec, req.WithContext(ctx))
+		if rec.Code != http.StatusOK {
+			t.Errorf("Expected status 200 OK for Admin accessing seller endpoint, got %d", rec.Code)
 		}
 	})
 }

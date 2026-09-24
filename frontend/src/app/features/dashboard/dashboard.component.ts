@@ -1,16 +1,19 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, inject, signal, computed, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import QRCode from 'qrcode';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { QuickSaleService } from '../../core/services/quick-sale.service';
+import { ToastService } from '../../core/services/toast.service';
 import { Ticket, User, DashboardStats, SellerRankingItem } from '../../core/models/api.models';
+import { SkeletonLoaderComponent } from '../../shared/components/skeleton-loader/skeleton-loader.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, SkeletonLoaderComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
@@ -18,6 +21,8 @@ export class DashboardComponent implements OnInit {
   readonly authService = inject(AuthService);
   private readonly apiService = inject(ApiService);
   private readonly quickSaleService = inject(QuickSaleService);
+  private readonly toastService = inject(ToastService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   loading = signal<boolean>(true);
   errorMessage = signal<string>('');
@@ -334,6 +339,10 @@ export class DashboardComponent implements OnInit {
   issueErrorMessage = signal<string>('');
   createdTicket = signal<any>(null);
   copiedPublicUrl = signal<boolean>(false);
+  modalQrDataUrl = signal<string | null>(null);
+  detailQrDataUrl = signal<string | null>(null);
+  authorizingModalEntry = signal<boolean>(false);
+  authorizingDetailEntry = signal<boolean>(false);
 
   getEffectiveBuyerCountryCode(): string {
     if (this.buyerCountryCode() === 'custom') {
@@ -362,6 +371,7 @@ export class DashboardComponent implements OnInit {
     this.buyerEmail.set('');
     this.issueErrorMessage.set('');
     this.createdTicket.set(null);
+    this.modalQrDataUrl.set(null);
     this.copiedPublicUrl.set(false);
     this.showIssueModal.set(true);
 
@@ -398,6 +408,54 @@ export class DashboardComponent implements OnInit {
     }
     this.issueErrorMessage.set('');
     this.issueStep.set(step);
+  }
+
+  generateModalQrCode(ticket: any): void {
+    if (!ticket) return;
+    const token = ticket.public_token || ticket.publicToken;
+    const path = ticket.public_url || (token ? `/tickets/public/${token}` : '');
+    if (!path && !token) return;
+
+    let fullUrl = path;
+    if (!path.startsWith('http')) {
+      const formattedPath = path.startsWith('/') ? path : `/${path}`;
+      fullUrl = `${window.location.origin}${formattedPath}`;
+    }
+
+    const qrFn = QRCode.toDataURL || (QRCode as any).default?.toDataURL;
+    if (typeof qrFn === 'function') {
+      qrFn(fullUrl, {
+        width: 220,
+        margin: 2,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#1a101f', light: '#ffffff' }
+      })
+        .then((url: string) => {
+          this.modalQrDataUrl.set(url);
+          this.cdr.detectChanges();
+        })
+        .catch((err: any) => console.error('Error generating modal QR code:', err));
+    }
+  }
+
+  generateDetailQrCode(ticket: Ticket): void {
+    if (!ticket?.publicToken) return;
+    const fullUrl = `${window.location.origin}/tickets/public/${ticket.publicToken}`;
+
+    const qrFn = QRCode.toDataURL || (QRCode as any).default?.toDataURL;
+    if (typeof qrFn === 'function') {
+      qrFn(fullUrl, {
+        width: 220,
+        margin: 2,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#1a101f', light: '#ffffff' }
+      })
+        .then((url: string) => {
+          this.detailQrDataUrl.set(url);
+          this.cdr.detectChanges();
+        })
+        .catch((err: any) => console.error('Error generating detail QR code:', err));
+    }
   }
 
   submitIssueTicket(): void {
@@ -438,6 +496,7 @@ export class DashboardComponent implements OnInit {
         this.issuingTicket.set(false);
         if (res.success && res.data) {
           this.createdTicket.set(res.data);
+          this.generateModalQrCode(res.data);
           this.issueStep.set(4);
           this.loadData();
         } else {
@@ -451,12 +510,76 @@ export class DashboardComponent implements OnInit {
     });
   }
 
+  authorizeModalEntryNow(): void {
+    const ticket = this.createdTicket();
+    if (!ticket) return;
+    const token = ticket.public_token || ticket.publicToken;
+    if (!token) return;
+
+    this.authorizingModalEntry.set(true);
+    this.apiService.validateTicket({
+      public_token: token,
+      validation_type: 'ENTRADA'
+    }).subscribe({
+      next: (res) => {
+        this.authorizingModalEntry.set(false);
+        if (res.success) {
+          this.createdTicket.set({
+            ...ticket,
+            status: 'USADO_ENTRADA'
+          });
+          this.toastService.success('¡Ingreso autorizado y registrado con éxito!');
+          this.loadData();
+          this.cdr.detectChanges();
+        } else {
+          this.toastService.error(res.error || 'Error al autorizar ingreso');
+        }
+      },
+      error: (err) => {
+        this.authorizingModalEntry.set(false);
+        const msg = err.error?.error || err.error?.message || 'Error al autorizar ingreso';
+        this.toastService.error(msg);
+      }
+    });
+  }
+
+  authorizeDetailEntryNow(): void {
+    const ticket = this.selectedTicket();
+    if (!ticket?.publicToken) return;
+
+    this.authorizingDetailEntry.set(true);
+    this.apiService.validateTicket({
+      public_token: ticket.publicToken,
+      validation_type: 'ENTRADA'
+    }).subscribe({
+      next: (res) => {
+        this.authorizingDetailEntry.set(false);
+        if (res.success) {
+          const updated = { ...ticket, status: 'USADO_ENTRADA' as const };
+          this.selectedTicket.set(updated);
+          this.toastService.success('¡Ingreso autorizado y registrado con éxito!');
+          this.loadData();
+          this.cdr.detectChanges();
+        } else {
+          this.toastService.error(res.error || 'Error al autorizar ingreso');
+        }
+      },
+      error: (err) => {
+        this.authorizingDetailEntry.set(false);
+        const msg = err.error?.error || err.error?.message || 'Error al autorizar ingreso';
+        this.toastService.error(msg);
+      }
+    });
+  }
+
   showDetailModal = signal<boolean>(false);
   selectedTicket = signal<Ticket | null>(null);
 
   openDetail(t: Ticket): void {
     this.selectedTicket.set(t);
+    this.detailQrDataUrl.set(null);
     this.copiedPublicUrl.set(false);
+    this.generateDetailQrCode(t);
     this.showDetailModal.set(true);
   }
 
@@ -467,7 +590,7 @@ export class DashboardComponent implements OnInit {
 
   copyTicketUrl(ticket: Ticket): void {
     if (!ticket?.publicToken) return;
-    const fullUrl = `${window.location.origin}/api/tickets/public/${ticket.publicToken}`;
+    const fullUrl = `${window.location.origin}/tickets/public/${ticket.publicToken}`;
     navigator.clipboard.writeText(fullUrl).then(() => {
       this.copiedPublicUrl.set(true);
       setTimeout(() => this.copiedPublicUrl.set(false), 2500);

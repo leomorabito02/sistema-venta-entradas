@@ -31,10 +31,7 @@
     <svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {{ errorMessage() }}
   </div>
 
-  <div *ngIf="loading()" class="loading-state">
-    <div class="spinner"></div>
-    <p>Cargando métricas en tiempo real...</p>
-  </div>
+  <app-skeleton-loader *ngIf="loading()" type="dashboard"></app-skeleton-loader>
 
   <div *ngIf="!loading()" class="dashboard-grid">
     <!-- Main Stat Cards -->
@@ -524,6 +521,12 @@
         </div>
 
         <div *ngIf="createdTicket()" class="ticket-result-card neu-card">
+          <!-- QR Code Display -->
+          <div *ngIf="modalQrDataUrl()" class="qr-container">
+            <img [src]="modalQrDataUrl()" alt="Código QR del Bono" class="qr-image" />
+            <p class="qr-caption">Escanea el QR para acceder o autoriza directamente abajo</p>
+          </div>
+
           <div class="result-row">
             <span>Número de Bono:</span>
             <strong>#{{ createdTicket().ticket_number }}</strong>
@@ -531,6 +534,16 @@
           <div class="result-row">
             <span>Código de 4 Dígitos:</span>
             <code class="code-badge">{{ createdTicket().four_digit_code }}</code>
+          </div>
+          <div class="result-row">
+            <span>Estado:</span>
+            <span class="neu-badge" [ngClass]="{
+              'neu-badge-vendido': createdTicket().status === 'VENDIDO',
+              'neu-badge-usado': createdTicket().status === 'USADO_ENTRADA' || createdTicket().status === 'USADO_COMIDA',
+              'neu-badge-anulado': createdTicket().status === 'ANULADO'
+            }">
+              {{ formatStatus(createdTicket().status || 'VENDIDO') }}
+            </span>
           </div>
           <div class="result-row">
             <span>Monto Pagado:</span>
@@ -548,6 +561,21 @@
               <button class="neu-btn neu-btn-bordo" (click)="copyPublicUrl()">
                 <svg class="icon" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> {{ copiedPublicUrl() ? '¡Copiado! ✓' : 'Copiar URL' }}
               </button>
+            </div>
+          </div>
+
+          <!-- Direct Authorization Button for Entry -->
+          <div class="direct-authorize-section" *ngIf="createdTicket().status === 'VENDIDO'">
+            <button class="neu-btn neu-btn-authorize" [disabled]="authorizingModalEntry()" (click)="authorizeModalEntryNow()">
+              <span *ngIf="authorizingModalEntry()" class="neu-spinner"></span>
+              <svg *ngIf="!authorizingModalEntry()" class="icon" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span>{{ authorizingModalEntry() ? 'Autorizando Ingreso...' : 'Autorizar / Validar Ingreso Ahora' }}</span>
+            </button>
+          </div>
+          <div class="direct-authorize-section" *ngIf="createdTicket().status === 'USADO_ENTRADA' || createdTicket().status === 'USADO_COMIDA'">
+            <div class="badge-authorized-success">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span>✓ Entrada Validada / En la fiesta</span>
             </div>
           </div>
         </div>
@@ -570,6 +598,12 @@
       </div>
 
       <div class="modal-body">
+        <!-- QR Code Display in Detail -->
+        <div *ngIf="detailQrDataUrl()" class="qr-container">
+          <img [src]="detailQrDataUrl()" alt="Código QR del Bono" class="qr-image" />
+          <p class="qr-caption">Escanea el QR para acceder o autoriza directamente abajo</p>
+        </div>
+
         <div class="code-highlight-box neu-card">
           <div class="highlight-item">
             <span class="hl-label">Código de 4 Dígitos</span>
@@ -607,10 +641,10 @@
             <span class="detail-label">Canal de Venta:</span>
             <span>{{ selectedTicket()?.saleSource === 'ANTICIPADA' ? 'ANTICIPADA' : 'PUERTA' }}</span>
           </div>
-          <div class="detail-group" *ngIf="selectedTicket()?.quotaSource">
+          <div class="detail-group" *ngIf="selectedTicket()?.quotaSource || selectedTicket()?.saleSource === 'PUERTA'">
             <span class="detail-label">Origen de Cuota:</span>
-            <span class="quota-tag" [class.personal]="selectedTicket()?.quotaSource === 'PERSONAL'" [class.libre]="selectedTicket()?.quotaSource === 'LIBRE'">
-              Cuota {{ selectedTicket()?.quotaSource === 'PERSONAL' ? 'Personal de Vendedor' : 'Compartida / Libre (Global)' }}
+            <span class="quota-tag" [class.personal]="selectedTicket()?.quotaSource === 'PERSONAL'" [class.libre]="selectedTicket()?.quotaSource === 'LIBRE'" [class.no-aplica]="selectedTicket()?.saleSource === 'PUERTA' || selectedTicket()?.quotaSource === 'NO_APLICA'">
+              {{ selectedTicket()?.saleSource === 'PUERTA' || selectedTicket()?.quotaSource === 'NO_APLICA' ? 'No aplica' : (selectedTicket()?.quotaSource === 'PERSONAL' ? 'Cuota Personal de Vendedor' : 'Cuota Compartida / Libre (Global)') }}
             </span>
           </div>
           <div class="detail-group">
@@ -636,10 +670,25 @@
         <div class="public-url-box">
           <label for="public-validation-url-dashboard">Enlace para el cliente:</label>
           <div class="url-input-group">
-            <input id="public-validation-url-dashboard" type="text" readonly [value]="'/api/tickets/public/' + selectedTicket()?.publicToken" class="neu-input" />
+            <input id="public-validation-url-dashboard" type="text" readonly [value]="'/tickets/public/' + selectedTicket()?.publicToken" class="neu-input" />
             <button class="neu-btn neu-btn-bordo" (click)="copyTicketUrl(selectedTicket()!)">
               <svg class="icon" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> {{ copiedPublicUrl() ? '¡Copiado! ✓' : 'Copiar Link' }}
             </button>
+          </div>
+        </div>
+
+        <!-- Direct Authorization Button for Entry in Detail Modal -->
+        <div class="direct-authorize-section" *ngIf="selectedTicket()?.status === 'VENDIDO'">
+          <button class="neu-btn neu-btn-authorize" [disabled]="authorizingDetailEntry()" (click)="authorizeDetailEntryNow()">
+            <span *ngIf="authorizingDetailEntry()" class="neu-spinner"></span>
+            <svg *ngIf="!authorizingDetailEntry()" class="icon" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span>{{ authorizingDetailEntry() ? 'Autorizando Ingreso...' : 'Autorizar / Validar Ingreso Ahora' }}</span>
+          </button>
+        </div>
+        <div class="direct-authorize-section" *ngIf="selectedTicket()?.status === 'USADO_ENTRADA' || selectedTicket()?.status === 'USADO_COMIDA'">
+          <div class="badge-authorized-success">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span>✓ Entrada Validada / En la fiesta</span>
           </div>
         </div>
       </div>

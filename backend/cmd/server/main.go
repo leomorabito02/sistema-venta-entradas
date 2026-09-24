@@ -42,6 +42,9 @@ func initDatabase(dsn string) (dbRepos, func()) {
 	}
 
 	log.Println("Connected to PostgreSQL database successfully")
+	_, _ = db.Exec(`ALTER TABLE tickets DROP CONSTRAINT IF EXISTS chk_tickets_quota_source;`)
+	_, _ = db.Exec(`ALTER TABLE tickets ADD CONSTRAINT chk_tickets_quota_source CHECK (quota_source IN ('PERSONAL', 'LIBRE', 'NO_APLICA'));`)
+
 	r := dbRepos{
 		userRepo:   repository.NewUserRepository(db),
 		quotaRepo:  repository.NewQuotaRepository(db),

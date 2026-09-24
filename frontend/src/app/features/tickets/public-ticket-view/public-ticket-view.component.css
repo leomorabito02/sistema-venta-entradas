@@ -334,3 +334,61 @@
     min-height: 48px;
   }
 }
+
+.rate-limit-card {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.rate-limit-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #fef3c7;
+  color: #b45309;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--neu-shadow-inset);
+}
+
+.rate-limit-icon .icon {
+  width: 32px;
+  height: 32px;
+}
+
+.rate-limit-msg {
+  font-size: 0.95rem;
+  color: var(--text-secondary, #665A5D);
+  max-width: 500px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.timer-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  background: var(--bg-cream-base, #F7F3EB);
+  width: 100%;
+  max-width: 320px;
+}
+
+.timer-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #665A5D);
+  margin-bottom: 0.3rem;
+}
+
+.timer-countdown {
+  font-size: 1.8rem;
+  font-family: monospace;
+  font-weight: 800;
+  color: var(--color-bordo, #7A001E);
+}

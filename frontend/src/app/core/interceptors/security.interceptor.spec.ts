@@ -87,4 +87,65 @@ describe('securityInterceptor', () => {
 
     expect(toastServiceSpy.error).not.toHaveBeenCalled();
   });
+
+  // White-Box Branch 5: 403 Forbidden Toast
+  it('should display access denied toast on 403 response', () => {
+    authServiceSpy.getAccessToken.and.returnValue(null);
+
+    httpClient.post('/api/admin/users', {}).subscribe({
+      error: (err) => expect(err.status).toBe(403)
+    });
+
+    const req = httpMock.expectOne('/api/admin/users');
+    req.flush('Forbidden', { status: 403, statusText: 'Forbidden' });
+
+    expect(toastServiceSpy.error).toHaveBeenCalledWith(
+      'Acceso Denegado (403)',
+      'No tienes permisos suficientes para realizar esta acción.'
+    );
+  });
+
+  // White-Box Branch 6: 400/409/422 Bad Request Toast with string error
+  it('should display error toast on 400 Bad Request with string payload', () => {
+    authServiceSpy.getAccessToken.and.returnValue(null);
+
+    httpClient.post('/api/tickets/buy', {}).subscribe({
+      error: (err) => expect(err.status).toBe(400)
+    });
+
+    const req = httpMock.expectOne('/api/tickets/buy');
+    req.flush('Stock insuficiente', { status: 400, statusText: 'Bad Request' });
+
+    expect(toastServiceSpy.error).toHaveBeenCalledWith('Error de Solicitud', 'Stock insuficiente');
+  });
+
+  // White-Box Branch 7: Skip toast when X-Skip-Toast header is present
+  it('should NOT display toast when X-Skip-Toast header is set', () => {
+    authServiceSpy.getAccessToken.and.returnValue(null);
+
+    httpClient.get('/api/tickets', { headers: { 'X-Skip-Toast': 'true' } }).subscribe({
+      error: (err) => expect(err.status).toBe(500)
+    });
+
+    const req = httpMock.expectOne('/api/tickets');
+    req.flush('Error', { status: 500, statusText: 'Server Error' });
+
+    expect(toastServiceSpy.error).not.toHaveBeenCalled();
+  });
+
+  // White-Box Branch 8: Offline handling
+  it('should trigger warning toast and return error when offline', () => {
+    const originalOnLine = navigator.onLine;
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+
+    let caughtError: Error | undefined;
+    httpClient.get('/api/offline-test').subscribe({
+      error: (err) => (caughtError = err)
+    });
+
+    expect(toastServiceSpy.warning).toHaveBeenCalledWith('Sin Conexión', 'Comprueba tu conexión a internet.');
+    expect(caughtError?.message).toBe('Sin conexión a internet');
+
+    Object.defineProperty(navigator, 'onLine', { value: originalOnLine, configurable: true });
+  });
 });

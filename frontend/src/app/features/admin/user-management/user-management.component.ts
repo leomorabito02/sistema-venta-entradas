@@ -5,10 +5,12 @@ import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { User, AdminQuotaOverviewResponse } from '../../../core/models/api.models';
 
+import { SkeletonLoaderComponent } from '../../../shared/components/skeleton-loader/skeleton-loader.component';
+
 @Component({
   selector: 'app-user-management',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SkeletonLoaderComponent],
   templateUrl: './user-management.component.html',
   styleUrl: './user-management.component.css'
 })

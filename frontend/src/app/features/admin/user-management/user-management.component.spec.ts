@@ -1,9 +1,10 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { UserManagementComponent } from './user-management.component';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { of, throwError } from 'rxjs';
 import { User, AdminQuotaOverviewResponse } from '../../../core/models/api.models';
+import { By } from '@angular/platform-browser';
 
 describe('UserManagementComponent', () => {
   let component: UserManagementComponent;
@@ -41,6 +42,10 @@ describe('UserManagementComponent', () => {
     apiServiceSpy.listUsers.and.returnValue(of({ success: true, data: mockUsers }));
     apiServiceSpy.getAdminQuotaOverview.and.returnValue(of({ success: true, data: mockQuotaOverview }));
     authServiceSpy.currentUser.and.returnValue({ id: 'admin-id', name: 'Admin', email: 'admin@example.com', role: 'ADMIN', status: 'ACTIVE' });
+    apiServiceSpy.updateDefaultQuotaConfig.and.returnValue(of({ success: true }));
+    apiServiceSpy.updateQuota.and.returnValue(of({ success: true }));
+    apiServiceSpy.updateUserStatus.and.returnValue(of({ success: true }));
+    apiServiceSpy.updateUserRole.and.returnValue(of({ success: true }));
 
     await TestBed.configureTestingModule({
       imports: [UserManagementComponent],
@@ -55,38 +60,148 @@ describe('UserManagementComponent', () => {
     fixture.detectChanges();
   });
 
-  // Black-Box Testing: User List & Quota Data Loading
-  it('should load users and quota overview on init', () => {
-    expect(component.users.length).toBe(2);
-    expect(component.defaultQuotaInput).toBe(10);
-    expect(component.sellerQuotaInputs['u1']).toBe(15);
+  describe('Initialization and Loading', () => {
+    it('should load users and quota overview on init', () => {
+      expect(component.users).toHaveSize(2);
+      expect(component.defaultQuotaInput).toBe(10);
+      expect(component.defaultFreeQuotaInput).toBe(5);
+      expect(component.freeQuotaInput).toBe(5);
+      expect(component.sellerQuotaInputs['u1']).toBe(15);
+      expect(component.sellerFreeQuotaInputs['u1']).toBe(5);
+    });
+
+    it('should handle listUsers error', () => {
+      apiServiceSpy.listUsers.and.returnValue(throwError(() => ({ error: { error: 'Users Error' } })));
+      component.loadUsers();
+      expect(component.message).toBe('Users Error');
+      expect(component.messageType).toBe('danger');
+    });
+
+    it('should handle getAdminQuotaOverview error', () => {
+      apiServiceSpy.getAdminQuotaOverview.and.returnValue(throwError(() => ({ error: { error: 'Quota Error' } })));
+      component.loadQuotaOverview();
+      expect(component.message).toBe('Quota Error');
+      expect(component.messageType).toBe('danger');
+    });
   });
 
-  // Black-Box Testing: Role Update
-  it('should call updateUserRole and reload users on role change', () => {
-    apiServiceSpy.updateUserRole.and.returnValue(of({ success: true, data: null }));
+  describe('Quota Management', () => {
+    it('should save default quota successfully', () => {
+      component.defaultQuotaInput = 20;
+      component.saveDefaultQuota();
+      expect(apiServiceSpy.updateDefaultQuotaConfig).toHaveBeenCalledWith({ default_personal_quota: 20 });
+      expect(apiServiceSpy.getAdminQuotaOverview).toHaveBeenCalledTimes(2); // init + refresh
+      expect(component.messageType).toBe('success');
+    });
 
-    component.updateRole('u1', 'ADMIN');
+    it('should handle save default quota error', () => {
+      apiServiceSpy.updateDefaultQuotaConfig.and.returnValue(throwError(() => ({ error: { error: 'Update Error' } })));
+      component.defaultQuotaInput = 20;
+      component.saveDefaultQuota();
+      expect(component.message).toBe('Update Error');
+      expect(component.messageType).toBe('danger');
+    });
 
-    expect(apiServiceSpy.updateUserRole).toHaveBeenCalledWith('u1', { role: 'ADMIN' });
-    expect(apiServiceSpy.listUsers).toHaveBeenCalledTimes(2);
+    it('should not save default quota if negative', () => {
+      component.defaultQuotaInput = -5;
+      component.saveDefaultQuota();
+      expect(apiServiceSpy.updateDefaultQuotaConfig).not.toHaveBeenCalled();
+    });
+
+    it('should save default free quota successfully', () => {
+      component.defaultFreeQuotaInput = 10;
+      component.saveDefaultFreeQuota();
+      expect(apiServiceSpy.updateDefaultQuotaConfig).toHaveBeenCalledWith({ default_free_quota: 10 });
+      expect(component.messageType).toBe('success');
+    });
+
+    it('should handle save default free quota error', () => {
+      apiServiceSpy.updateDefaultQuotaConfig.and.returnValue(throwError(() => ({ error: { error: 'Free Update Error' } })));
+      component.defaultFreeQuotaInput = 10;
+      component.saveDefaultFreeQuota();
+      expect(component.message).toBe('Free Update Error');
+      expect(component.messageType).toBe('danger');
+    });
+
+    it('should save free quota successfully', () => {
+      component.freeQuotaInput = 100;
+      component.saveFreeQuota();
+      expect(apiServiceSpy.updateQuota).toHaveBeenCalledWith({ quota_type: 'FREE', assigned_quota: 100 });
+      expect(component.messageType).toBe('success');
+    });
+
+    it('should handle save free quota error', () => {
+      apiServiceSpy.updateQuota.and.returnValue(throwError(() => ({ error: { error: 'Global Free Error' } })));
+      component.freeQuotaInput = 100;
+      component.saveFreeQuota();
+      expect(component.message).toBe('Global Free Error');
+      expect(component.messageType).toBe('danger');
+    });
+
+    it('should save seller quota successfully', () => {
+      component.sellerQuotaInputs['u1'] = 25;
+      component.saveSellerQuota('u1');
+      expect(apiServiceSpy.updateQuota).toHaveBeenCalledWith({ quota_type: 'PERSONAL', seller_id: 'u1', assigned_quota: 25 });
+      expect(component.messageType).toBe('success');
+    });
+
+    it('should handle save seller quota error', () => {
+      apiServiceSpy.updateQuota.and.returnValue(throwError(() => ({ error: { error: 'Seller Quota Error' } })));
+      component.sellerQuotaInputs['u1'] = 25;
+      component.saveSellerQuota('u1');
+      expect(component.message).toBe('Seller Quota Error');
+      expect(component.messageType).toBe('danger');
+    });
+
+    it('should not save seller quota if negative or undefined', () => {
+      component.sellerQuotaInputs['u1'] = -1;
+      component.saveSellerQuota('u1');
+      component.saveSellerQuota('non-existent');
+      expect(apiServiceSpy.updateQuota).not.toHaveBeenCalled();
+    });
+
+    it('should save seller free quota successfully', () => {
+      component.sellerFreeQuotaInputs['u1'] = 30;
+      component.saveSellerFreeQuota('u1');
+      expect(apiServiceSpy.updateQuota).toHaveBeenCalledWith({ quota_type: 'FREE', seller_id: 'u1', assigned_quota: 30 });
+      expect(component.messageType).toBe('success');
+    });
+
+    it('should handle save seller free quota error', () => {
+      apiServiceSpy.updateQuota.and.returnValue(throwError(() => ({ error: { error: 'Seller Free Quota Error' } })));
+      component.sellerFreeQuotaInputs['u1'] = 30;
+      component.saveSellerFreeQuota('u1');
+      expect(component.message).toBe('Seller Free Quota Error');
+      expect(component.messageType).toBe('danger');
+    });
   });
 
-  // Black-Box Testing: Status Update Error Handling
-  it('should display danger message when updateUserStatus fails', () => {
-    apiServiceSpy.updateUserStatus.and.returnValue(throwError(() => ({ error: { error: 'Permission denied' } })));
+  describe('User Status and Role', () => {
+    it('should update user status successfully', () => {
+      component.updateStatus('u1', 'DISABLED');
+      expect(apiServiceSpy.updateUserStatus).toHaveBeenCalledWith('u1', { status: 'DISABLED' });
+      expect(apiServiceSpy.listUsers).toHaveBeenCalledTimes(2); // init + refresh
+      expect(component.messageType).toBe('success');
+    });
 
-    component.updateStatus('u1', 'DISABLED');
+    it('should handle update user status error', () => {
+      apiServiceSpy.updateUserStatus.and.returnValue(throwError(() => ({ error: { error: 'Status Error' } })));
+      component.updateStatus('u1', 'DISABLED');
+      expect(component.message).toBe('Status Error');
+      expect(component.messageType).toBe('danger');
+    });
 
-    expect(component.message).toBe('Permission denied');
-    expect(component.messageType).toBe('danger');
-  });
+    it('should update user role successfully', () => {
+      component.updateRole('u1', 'ADMIN');
+      expect(apiServiceSpy.updateUserRole).toHaveBeenCalledWith('u1', { role: 'ADMIN' });
+      expect(component.messageType).toBe('success');
+    });
 
-  // Boundary Value Analysis: Negative quota input rejection
-  it('should ignore saveDefaultQuota if defaultQuotaInput is negative', () => {
-    component.defaultQuotaInput = -5;
-    component.saveDefaultQuota();
-
-    expect(apiServiceSpy.updateDefaultQuotaConfig).not.toHaveBeenCalled();
+    it('should handle update user role error', () => {
+      apiServiceSpy.updateUserRole.and.returnValue(throwError(() => ({ error: { error: 'Role Error' } })));
+      component.updateRole('u1', 'ADMIN');
+      expect(component.message).toBe('Role Error');
+      expect(component.messageType).toBe('danger');
+    });
   });
 });

@@ -23,6 +23,7 @@ type TicketRepository interface {
 	GetBy4DigitCodeTx(ctx context.Context, tx *sql.Tx, code string) (*models.Ticket, error)
 	Is4DigitCodeExists(ctx context.Context, code string) (bool, error)
 	UpdateStatusTx(ctx context.Context, tx *sql.Tx, ticketID string, status models.TicketStatus) error
+	UpdateStatusConditionalTx(ctx context.Context, tx *sql.Tx, ticketID string, expectedStatus models.TicketStatus, newStatus models.TicketStatus) error
 	RecordValidationTx(ctx context.Context, tx *sql.Tx, val *models.TicketValidation) error
 	ListTickets(ctx context.Context, sellerID string) ([]*models.Ticket, error)
 }
@@ -145,6 +146,22 @@ func (r *postgresTicketRepository) UpdateStatusTx(ctx context.Context, tx *sql.T
 	query := `UPDATE tickets SET status = $1, updated_at = NOW() WHERE id = $2`
 	_, err := tx.ExecContext(ctx, query, status, ticketID)
 	return err
+}
+
+func (r *postgresTicketRepository) UpdateStatusConditionalTx(ctx context.Context, tx *sql.Tx, ticketID string, expectedStatus models.TicketStatus, newStatus models.TicketStatus) error {
+	query := `UPDATE tickets SET status = $1, updated_at = NOW() WHERE id = $2 AND status = $3`
+	res, err := tx.ExecContext(ctx, query, newStatus, ticketID, expectedStatus)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return models.ErrStatusConflict
+	}
+	return nil
 }
 
 func (r *postgresTicketRepository) RecordValidationTx(ctx context.Context, tx *sql.Tx, v *models.TicketValidation) error {

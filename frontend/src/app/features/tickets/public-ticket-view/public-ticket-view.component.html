@@ -1,19 +1,40 @@
 <div class="public-ticket-container">
   <!-- Loading State -->
   <ng-container *ngIf="loading()">
-    <app-skeleton-loader></app-skeleton-loader>
+    <app-skeleton-loader type="public-ticket"></app-skeleton-loader>
   </ng-container>
 
   <!-- Error State -->
-  <div *ngIf="!loading() && errorMessage()" class="neu-card state-card error-card">
+  <div *ngIf="!loading() && !isRateLimited() && errorMessage()" class="neu-card state-card error-card">
     <div class="state-icon"><svg class="icon" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
     <h2>Bono No Disponible</h2>
     <p class="error-msg">{{ errorMessage() }}</p>
     <a routerLink="/" class="neu-btn neu-btn-bordo">Ir al Inicio</a>
   </div>
 
+  <!-- Rate Limit Friendly State (Non-technical user message & countdown) -->
+  <div *ngIf="!loading() && isRateLimited()" class="neu-card state-card rate-limit-card">
+    <div class="state-icon rate-limit-icon">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+    </div>
+    <h2>Acceso Pausado Temporalmente</h2>
+    <p class="rate-limit-msg">
+      Esta entrada se ha consultado muchas veces seguidas desde tu dispositivo. Por motivos de seguridad y para proteger la información del bono, hemos pausado las solicitudes brevemente.
+    </p>
+    <div class="timer-badge neu-card">
+      <span class="timer-label">Podrás ver tu entrada automáticamente en:</span>
+      <strong class="timer-countdown">{{ retryAfterSeconds() }} segundos</strong>
+    </div>
+    <button class="neu-btn neu-btn-bordo" [disabled]="retryAfterSeconds() > 0" (click)="retryNow()">
+      {{ retryAfterSeconds() > 0 ? 'Esperando tiempo de seguridad...' : 'Volver a Cargar Entrada' }}
+    </button>
+  </div>
+
   <!-- Main Ticket View Card (Digital Wallet Style) -->
-  <div *ngIf="!loading() && ticket()" class="ticket-card neu-card wallet-ticket-pass">
+  <div *ngIf="!loading() && !isRateLimited() && ticket()" class="ticket-card neu-card wallet-ticket-pass">
     <!-- Header Banner -->
     <div class="ticket-header-banner">
       <div class="event-brand">

@@ -63,9 +63,9 @@ func (r *CreateTicketRequest) Validate() error {
 
 	if r.QuotaSource != "" {
 		switch r.QuotaSource {
-		case models.QuotaSourcePersonal, models.QuotaSourceLibre:
+		case models.QuotaSourcePersonal, models.QuotaSourceLibre, models.QuotaSourceNoAplica:
 		default:
-			return fmt.Errorf("invalid quota_source: %s (must be PERSONAL or LIBRE)", r.QuotaSource)
+			return fmt.Errorf("invalid quota_source: %s (must be PERSONAL, LIBRE, or NO_APLICA)", r.QuotaSource)
 		}
 	}
 

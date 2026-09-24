@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -47,6 +48,24 @@ func (c *QuotaController) GetGlobalFreeQuota(w http.ResponseWriter, r *http.Requ
 	c.jsonView.Success(w, http.StatusOK, "Global free quota retrieved successfully", summary)
 }
 
+func isSpecificSeller(sellerID *string) bool {
+	return sellerID != nil && *sellerID != "" && *sellerID != "ALL"
+}
+
+func (c *QuotaController) updatePersonalQuota(ctx context.Context, adminID string, req *dto.UpdateQuotaRequest) error {
+	if isSpecificSeller(req.SellerID) {
+		return c.quotaService.SetSellerQuota(ctx, adminID, *req.SellerID, req.AssignedQuota)
+	}
+	return c.quotaService.SetAllSellersPersonalQuota(ctx, adminID, req.AssignedQuota)
+}
+
+func (c *QuotaController) updateFreeQuota(ctx context.Context, adminID string, req *dto.UpdateQuotaRequest) error {
+	if isSpecificSeller(req.SellerID) {
+		return c.quotaService.SetSellerFreeQuota(ctx, adminID, *req.SellerID, req.AssignedQuota)
+	}
+	return c.quotaService.SetGlobalFreeQuota(ctx, adminID, req.AssignedQuota)
+}
+
 func (c *QuotaController) UpdateQuota(w http.ResponseWriter, r *http.Request) {
 	adminID := r.Header.Get("X-User-ID")
 	if adminID == "" {
@@ -64,31 +83,17 @@ func (c *QuotaController) UpdateQuota(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var err error
 	switch req.QuotaType {
 	case "PERSONAL":
-		if req.SellerID != nil && *req.SellerID != "" && *req.SellerID != "ALL" {
-			if err := c.quotaService.SetSellerQuota(r.Context(), adminID, *req.SellerID, req.AssignedQuota); err != nil {
-				c.jsonView.Error(w, 0, "", err)
-				return
-			}
-		} else {
-			if err := c.quotaService.SetAllSellersPersonalQuota(r.Context(), adminID, req.AssignedQuota); err != nil {
-				c.jsonView.Error(w, 0, "", err)
-				return
-			}
-		}
+		err = c.updatePersonalQuota(r.Context(), adminID, &req)
 	case "FREE":
-		if req.SellerID != nil && *req.SellerID != "" && *req.SellerID != "ALL" {
-			if err := c.quotaService.SetSellerFreeQuota(r.Context(), adminID, *req.SellerID, req.AssignedQuota); err != nil {
-				c.jsonView.Error(w, 0, "", err)
-				return
-			}
-		} else {
-			if err := c.quotaService.SetGlobalFreeQuota(r.Context(), adminID, req.AssignedQuota); err != nil {
-				c.jsonView.Error(w, 0, "", err)
-				return
-			}
-		}
+		err = c.updateFreeQuota(r.Context(), adminID, &req)
+	}
+
+	if err != nil {
+		c.jsonView.Error(w, 0, "", err)
+		return
 	}
 
 	c.jsonView.Success(w, http.StatusOK, "Quota updated successfully", nil)

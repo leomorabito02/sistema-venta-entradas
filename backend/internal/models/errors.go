@@ -16,6 +16,7 @@ var (
 	ErrTicketAnnulled           = errors.New("ticket is annulled")
 	ErrInvalidStatusTransition = errors.New("invalid ticket status transition")
 	ErrAlreadyExists            = errors.New("resource already exists")
+	ErrStatusConflict           = errors.New("ticket status changed concurrently or already processed")
 )
 
 // AppError represents a structured application error with HTTP status codes and context.

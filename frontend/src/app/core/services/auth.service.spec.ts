@@ -91,7 +91,7 @@ describe('AuthService', () => {
     service.refreshToken().subscribe((r) => (res2 = r));
 
     const reqs = httpMock.match((r) => r.url.endsWith('/api/auth/refresh'));
-    expect(reqs.length).toBe(1);
+    expect(reqs).toHaveSize(1);
     expect(reqs[0].request.method).toBe('POST');
     reqs[0].flush(mockSuccessResponse);
 

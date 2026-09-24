@@ -62,7 +62,7 @@ func TestSecurityHeaders(t *testing.T) {
 		"X-Content-Type-Options":    "nosniff",
 		"X-Frame-Options":           "DENY",
 		"X-XSS-Protection":          "1; mode=block",
-		"Content-Security-Policy":   "default-src 'self'",
+		"Content-Security-Policy":   "default-src 'self'; img-src 'self' data:;",
 		"Referrer-Policy":           "strict-origin-when-cross-origin",
 		"Strict-Transport-Security": "max-age=31536000; includeSubDomains",
 	}
@@ -139,6 +139,17 @@ func TestValidateAntiCSRF(t *testing.T) {
 
 		if rec.Code != http.StatusOK {
 			t.Errorf("Expected status 200 OK, got %d", rec.Code)
+		}
+	})
+
+	t.Run("GET method bypasses CSRF check", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/tickets", nil)
+		rec := httptest.NewRecorder()
+
+		csrfMW.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("Expected status 200 OK for GET request, got %d", rec.Code)
 		}
 	})
 }

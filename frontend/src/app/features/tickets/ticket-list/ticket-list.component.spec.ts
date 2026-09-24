@@ -45,7 +45,7 @@ describe('TicketListComponent', () => {
   ];
 
   beforeEach(async () => {
-    apiServiceSpy = jasmine.createSpyObj('ApiService', ['listTickets', 'listUsers', 'annulTicket']);
+    apiServiceSpy = jasmine.createSpyObj('ApiService', ['listTickets', 'listUsers', 'annulTicket', 'validateTicket']);
     authServiceSpy = jasmine.createSpyObj('AuthService', ['isAdmin']);
 
     authServiceSpy.isAdmin.and.returnValue(true);
@@ -68,21 +68,21 @@ describe('TicketListComponent', () => {
   // Black-Box Testing: Filtering by Search Query
   it('should filter tickets by search query matching buyer name or 4-digit code', () => {
     component.searchQuery.set('Pedro');
-    expect(component.filteredTickets().length).toBe(1);
+    expect(component.filteredTickets()).toHaveSize(1);
     expect(component.filteredTickets()[0].fourDigitCode).toBe('9999');
 
     component.searchQuery.set('8888');
-    expect(component.filteredTickets().length).toBe(1);
+    expect(component.filteredTickets()).toHaveSize(1);
     expect(component.filteredTickets()[0].buyerName).toBe('Ana Buyer');
   });
 
   // Black-Box Testing: Filtering by Ticket Type
   it('should filter tickets by status and ticket type', () => {
     component.ticketTypeFilter.set('CON_COMIDA');
-    expect(component.filteredTickets().length).toBe(1);
+    expect(component.filteredTickets()).toHaveSize(1);
 
     component.statusFilter.set('VENDIDO');
-    expect(component.filteredTickets().length).toBe(0); // t2 is USADO_ENTRADA
+    expect(component.filteredTickets()).toHaveSize(0); // t2 is USADO_ENTRADA
   });
 
   // Black-Box & State Transition: Annulment flow
@@ -105,5 +105,23 @@ describe('TicketListComponent', () => {
 
     expect(component.searchQuery()).toBe('');
     expect(component.statusFilter()).toBe('ALL');
+  });
+
+  // Detail Modal & QR / Direct Authorization
+  it('should open detail modal for selected ticket', () => {
+    component.openDetail(mockTickets[0]);
+    expect(component.selectedTicket()).toBe(mockTickets[0]);
+    expect(component.showDetailModal()).toBeTrue();
+  });
+
+  it('should authorize ticket entry directly', () => {
+    apiServiceSpy.validateTicket.and.returnValue(of({ success: true, data: mockTickets[0] }));
+    component.selectedTicket.set(mockTickets[0]);
+    component.authorizeDetailEntryNow();
+    expect(apiServiceSpy.validateTicket).toHaveBeenCalledWith({
+      public_token: 'tok1',
+      validation_type: 'ENTRADA'
+    });
+    expect(component.selectedTicket()?.status).toBe('USADO_ENTRADA');
   });
 });

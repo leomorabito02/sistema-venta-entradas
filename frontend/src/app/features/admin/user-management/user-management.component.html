@@ -8,7 +8,9 @@
     {{ message }}
   </div>
 
-  <div class="neu-card section-card">
+  <app-skeleton-loader *ngIf="loading" type="admin-users"></app-skeleton-loader>
+
+  <div *ngIf="!loading" class="neu-card section-card">
     <div class="header-action">
       <h3>Usuarios Registrados</h3>
       <button (click)="loadUsers()" [disabled]="loading" class="neu-btn neu-btn-bordo">

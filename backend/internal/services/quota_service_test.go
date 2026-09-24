@@ -115,6 +115,17 @@ func TestQuotaService_SetQuotaValidations(t *testing.T) {
 	if err := svc.SetGlobalFreeQuota(ctx, "admin-id", 200); err != nil {
 		t.Errorf("Unexpected error setting global free quota: %v", err)
 	}
+
+	// SetSellerFreeQuota validations
+	if err := svc.SetSellerFreeQuota(ctx, "admin-id", "", 5); err == nil {
+		t.Errorf("Expected error for empty seller ID in SetSellerFreeQuota")
+	}
+	if err := svc.SetSellerFreeQuota(ctx, "admin-id", "seller-uuid-1", -1); err == nil {
+		t.Errorf("Expected error for negative assigned free quota")
+	}
+	if err := svc.SetSellerFreeQuota(ctx, "admin-id", "seller-uuid-1", 10); err != nil {
+		t.Errorf("Unexpected error setting seller free quota: %v", err)
+	}
 }
 
 func TestQuotaService_DefaultQuotaConfig(t *testing.T) {

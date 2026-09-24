@@ -329,3 +329,82 @@ func TestTicketService_GetPublicTicket(t *testing.T) {
 		t.Errorf("Expected error for non-existent public token")
 	}
 }
+
+func TestTicketService_ValidateFoodOnSimpleTicket_Error(t *testing.T) {
+	svc, _, _, _, _ := setupTicketServiceTest()
+	ctx := context.Background()
+
+	createReq := &dto.CreateTicketRequest{
+		TicketType: models.TicketTypeSimple,
+		SaleSource: models.SaleSourceAnticipada,
+		FirstName:  "Mario",
+		LastName:   "Rossi",
+		Phone:      "1122334455",
+	}
+
+	created, err := svc.CreateTicket(ctx, "seller-uuid-1", createReq)
+	if err != nil {
+		t.Fatalf("Failed to create simple ticket: %v", err)
+	}
+
+	// Food validation on simple ticket must fail
+	valReq := &dto.ValidateTicketRequest{
+		PublicToken:    created.PublicToken,
+		ValidationType: models.ValidationTypeComida,
+	}
+
+	_, err = svc.ValidateTicket(ctx, "operator-uuid-1", valReq)
+	if err == nil {
+		t.Errorf("Expected error when validating food on SIMPLE ticket")
+	}
+}
+
+func TestTicketService_AnnulTicket_EdgeCases(t *testing.T) {
+	svc, ticketRepo, _, _, _ := setupTicketServiceTest()
+	ctx := context.Background()
+
+	// 1. Annul non-existent ticket -> error
+	err := svc.AnnulTicket(ctx, "operator-uuid-1", "non-existent-id", "refund")
+	if err == nil {
+		t.Errorf("Expected error when annulling non-existent ticket")
+	}
+
+	// 2. Annul ticket that is already ANULADO -> error
+	tObj := &models.Ticket{
+		ID:          "annulled-t1",
+		PublicToken: "tok-annulled",
+		TicketType:  models.TicketTypeSimple,
+		Status:      models.TicketStatusAnulado,
+		BuyerID:     "b-1",
+		SellerID:    "seller-uuid-1",
+	}
+	ticketRepo.Tickets[tObj.ID] = tObj
+
+	err = svc.AnnulTicket(ctx, "operator-uuid-1", tObj.ID, "duplicate refund")
+	if err == nil {
+		t.Errorf("Expected error when annulling an already annulled ticket")
+	}
+}
+
+func TestTicketService_ListTicketsAsAdmin(t *testing.T) {
+	svc, ticketRepo, _, _, _ := setupTicketServiceTest()
+	ctx := context.Background()
+
+	tObj := &models.Ticket{
+		ID:          "t-admin-list",
+		PublicToken: "tok-list",
+		TicketType:  models.TicketTypeSimple,
+		Status:      models.TicketStatusVendido,
+		BuyerID:     "b-1",
+		SellerID:    "seller-uuid-1",
+	}
+	ticketRepo.Tickets[tObj.ID] = tObj
+
+	tickets, err := svc.ListTickets(ctx, "")
+	if err != nil {
+		t.Fatalf("ListTickets as admin failed: %v", err)
+	}
+	if len(tickets) != 1 {
+		t.Errorf("Expected 1 ticket, got %d", len(tickets))
+	}
+}

@@ -193,6 +193,34 @@ svg.icon, .icon {
   color: #991b1b;
 }
 
+.quota-tag {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--bg-cream-dark, #E9E1D2);
+  color: var(--text-primary, #2B2325);
+}
+
+.quota-tag.personal {
+  background: #E0F2FE;
+  color: #0369A1;
+  border: 1px solid #BAE6FD;
+}
+
+.quota-tag.libre {
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+}
+
+.quota-tag.no-aplica {
+  background: #F3F4F6;
+  color: #4B5563;
+  border: 1px solid #E5E7EB;
+}
+
 /* Pill Selectors for Mobile */
 .pill-selector {
   display: flex;
@@ -499,7 +527,8 @@ svg.icon, .icon {
     border-top-right-radius: 28px !important;
     max-height: calc(88vh - var(--safe-area-bottom, 0px)) !important;
     padding: 1.25rem 1.25rem calc(1.5rem + var(--safe-area-bottom, 0px)) 1.25rem !important;
-    animation: slideUpModal 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: slideUpModal 0.18s cubic-bezier(0.2, 0.9, 0.3, 1);
+    will-change: transform;
   }
 
   .modal-footer {
@@ -536,6 +565,54 @@ svg.icon, .icon {
 }
 
 @keyframes slideUpModal {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+  from { transform: translate3d(0, 100%, 0); }
+  to { transform: translate3d(0, 0, 0); }
 }
+
+/* Botón Flotante Desktop Global (FAB) para Emitir Entrada */
+.desktop-fab-issue-btn {
+  position: fixed;
+  bottom: 2.25rem;
+  right: 2.25rem;
+  z-index: 9000;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.85rem 1.4rem;
+  background: linear-gradient(135deg, var(--color-bordo, #7A001E) 0%, var(--color-bordo-hover, #5C0016) 100%);
+  color: #ffffff;
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  font-family: var(--font-body);
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(122, 0, 30, 0.4), 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(4px);
+}
+
+.desktop-fab-issue-btn:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 12px 30px rgba(122, 0, 30, 0.5), 0 4px 10px rgba(0, 0, 0, 0.2);
+  border-color: var(--color-gold, #D4AF37);
+  color: var(--color-gold, #D4AF37);
+}
+
+.desktop-fab-issue-btn:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: inset 2px 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.fab-icon {
+  width: 1.35rem;
+  height: 1.35rem;
+  stroke-width: 2.2;
+}
+
+@media (max-width: 768px) {
+  .desktop-fab-issue-btn {
+    display: none !important;
+  }
+}
+

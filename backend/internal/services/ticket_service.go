@@ -5,18 +5,23 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
 	"time"
 
+	"backend/internal/cache"
 	"backend/internal/dto"
 	"backend/internal/models"
 	"backend/internal/repository"
 )
 
 const (
-	errFailedToBeginTx = "Failed to begin transaction"
+	errFailedToBeginTx   = "Failed to begin transaction"
+	cacheKeyTicketsList  = "tickets:list:"
+	cacheKeyTicketPublic = "ticket:public:"
+	cacheKeyPricesActive = "prices:active"
 )
 
 type TicketService interface {
@@ -30,10 +35,11 @@ type TicketService interface {
 }
 
 type ticketService struct {
-	ticketRepo repository.TicketRepository
-	quotaRepo  repository.QuotaRepository
-	priceRepo  repository.PriceRepository
-	userRepo   repository.UserRepository
+	ticketRepo   repository.TicketRepository
+	quotaRepo    repository.QuotaRepository
+	priceRepo    repository.PriceRepository
+	userRepo     repository.UserRepository
+	cacheService cache.CacheService
 }
 
 func NewTicketService(
@@ -41,12 +47,20 @@ func NewTicketService(
 	quotaRepo repository.QuotaRepository,
 	priceRepo repository.PriceRepository,
 	userRepo repository.UserRepository,
+	opts ...cache.CacheService,
 ) TicketService {
+	var c cache.CacheService
+	if len(opts) > 0 && opts[0] != nil {
+		c = opts[0]
+	} else {
+		c = cache.NewMemoryCache()
+	}
 	return &ticketService{
-		ticketRepo: ticketRepo,
-		quotaRepo:  quotaRepo,
-		priceRepo:  priceRepo,
-		userRepo:   userRepo,
+		ticketRepo:   ticketRepo,
+		quotaRepo:    quotaRepo,
+		priceRepo:    priceRepo,
+		userRepo:     userRepo,
+		cacheService: c,
 	}
 }
 
@@ -126,6 +140,8 @@ func (s *ticketService) CreateTicket(ctx context.Context, sellerID string, req *
 		}
 	}
 
+	s.cacheService.InvalidatePrefix(ctx, cacheKeyTicketsList)
+
 	ticket.Buyer = buyer
 	ticket.Seller = seller
 	return s.toTicketResponse(ticket), nil
@@ -136,6 +152,13 @@ func (s *ticketService) GetPublicTicket(ctx context.Context, token string) (*dto
 		return nil, models.NewBadRequestError("Public token is required", nil)
 	}
 
+	cacheKey := cacheKeyTicketPublic + token
+	if cached, found := s.cacheService.Get(ctx, cacheKey); found {
+		if resp, ok := cached.(*dto.TicketPublicResponse); ok {
+			return resp, nil
+		}
+	}
+
 	ticket, err := s.ticketRepo.GetByPublicToken(ctx, token)
 	if err != nil {
 		return nil, models.NewNotFoundError("Ticket not found", err)
@@ -144,21 +167,24 @@ func (s *ticketService) GetPublicTicket(ctx context.Context, token string) (*dto
 	includesFood := ticket.TicketType == models.TicketTypeConComida
 	buyerName := fmt.Sprintf("%s %s", ticket.Buyer.FirstName, ticket.Buyer.LastName)
 
-	return &dto.TicketPublicResponse{
-		TicketNumber:  ticket.TicketNumber,
-		FourDigitCode: ticket.FourDigitCode,
-		PublicToken:   ticket.PublicToken,
-		TicketType:    ticket.TicketType,
-		SaleSource:    ticket.SaleSource,
-		Status:        ticket.Status,
-		PricePaid:     ticket.PricePaid,
-		BuyerName:     buyerName,
-		SellerName:    ticket.Seller.Name,
+	resp := &dto.TicketPublicResponse{
+		TicketNumber:     ticket.TicketNumber,
+		FourDigitCode:    ticket.FourDigitCode,
+		PublicToken:      ticket.PublicToken,
+		TicketType:       ticket.TicketType,
+		SaleSource:       ticket.SaleSource,
+		Status:           ticket.Status,
+		PricePaid:        ticket.PricePaid,
+		BuyerName:        buyerName,
+		SellerName:       ticket.Seller.Name,
 		IncludesFood:     includesFood,
 		CreatedAt:        ticket.CreatedAt,
 		EntryValidatedAt: ticket.EntryValidatedAt,
 		FoodValidatedAt:  ticket.FoodValidatedAt,
-	}, nil
+	}
+
+	s.cacheService.Set(ctx, cacheKey, resp, 15*time.Second)
+	return resp, nil
 }
 
 func (s *ticketService) ValidateTicket(ctx context.Context, operatorID string, req *dto.ValidateTicketRequest) (*dto.TicketResponse, error) {
@@ -185,7 +211,10 @@ func (s *ticketService) ValidateTicket(ctx context.Context, operatorID string, r
 		return nil, err
 	}
 
-	if err := s.ticketRepo.UpdateStatusTx(ctx, tx, ticket.ID, nextStatus); err != nil {
+	if err := s.ticketRepo.UpdateStatusConditionalTx(ctx, tx, ticket.ID, prevStatus, nextStatus); err != nil {
+		if errors.Is(err, models.ErrStatusConflict) {
+			return nil, models.NewConflictError("La entrada ya fue utilizada o su estado ha cambiado", err)
+		}
 		return nil, models.NewInternalError("Failed to update ticket status", err)
 	}
 
@@ -205,6 +234,9 @@ func (s *ticketService) ValidateTicket(ctx context.Context, operatorID string, r
 			return nil, models.NewInternalError("Failed to commit validation transaction", err)
 		}
 	}
+
+	s.cacheService.Delete(ctx, cacheKeyTicketPublic+ticket.PublicToken)
+	s.cacheService.InvalidatePrefix(ctx, cacheKeyTicketsList)
 
 	ticket.Status = nextStatus
 	s.enrichTicketValidatorInfo(ctx, ticket, req.ValidationType, operatorID, validation.ValidatedAt)
@@ -318,8 +350,14 @@ func (s *ticketService) AnnulTicket(ctx context.Context, operatorID string, tick
 	}
 
 	if tx != nil {
-		return tx.Commit()
+		if err := tx.Commit(); err != nil {
+			return models.NewInternalError("Failed to commit annulment transaction", err)
+		}
 	}
+
+	s.cacheService.Delete(ctx, cacheKeyTicketPublic+ticket.PublicToken)
+	s.cacheService.InvalidatePrefix(ctx, cacheKeyTicketsList)
+
 	return nil
 }
 
@@ -328,7 +366,7 @@ func (s *ticketService) toTicketResponse(t *models.Ticket) *dto.TicketResponse {
 		ID:            t.ID,
 		TicketNumber:  t.TicketNumber,
 		PublicToken:   t.PublicToken,
-		PublicURL:     fmt.Sprintf("/api/tickets/public/%s", t.PublicToken),
+		PublicURL:     fmt.Sprintf("/tickets/public/%s", t.PublicToken),
 		FourDigitCode: t.FourDigitCode,
 		TicketType:    t.TicketType,
 		SaleSource:    t.SaleSource,
@@ -390,6 +428,13 @@ func (s *ticketService) generateUnique4DigitCode(ctx context.Context) (string, e
 }
 
 func (s *ticketService) GetActivePrices(ctx context.Context) ([]*dto.TicketPriceResponse, error) {
+	cacheKey := cacheKeyPricesActive
+	if cached, found := s.cacheService.Get(ctx, cacheKey); found {
+		if resp, ok := cached.([]*dto.TicketPriceResponse); ok {
+			return resp, nil
+		}
+	}
+
 	pricesMap, err := s.priceRepo.GetAllActivePrices(ctx)
 	if err != nil {
 		return nil, models.NewInternalError("Failed to fetch active prices", err)
@@ -399,6 +444,8 @@ func (s *ticketService) GetActivePrices(ctx context.Context) ([]*dto.TicketPrice
 		{TicketType: models.TicketTypeSimple, Price: pricesMap[models.TicketTypeSimple]},
 		{TicketType: models.TicketTypeConComida, Price: pricesMap[models.TicketTypeConComida]},
 	}
+
+	s.cacheService.Set(ctx, cacheKey, result, 5*time.Minute)
 	return result, nil
 }
 
@@ -420,6 +467,8 @@ func (s *ticketService) UpdatePrice(ctx context.Context, adminID string, req *dt
 		return nil, models.NewInternalError("Failed to set active ticket price", err)
 	}
 
+	s.cacheService.Delete(ctx, cacheKeyPricesActive)
+
 	return &dto.TicketPriceResponse{
 		TicketType: req.TicketType,
 		Price:      req.Price,
@@ -427,6 +476,13 @@ func (s *ticketService) UpdatePrice(ctx context.Context, adminID string, req *dt
 }
 
 func (s *ticketService) ListTickets(ctx context.Context, sellerID string) ([]*dto.TicketResponse, error) {
+	cacheKey := cacheKeyTicketsList + sellerID
+	if cached, found := s.cacheService.Get(ctx, cacheKey); found {
+		if resp, ok := cached.([]*dto.TicketResponse); ok {
+			return resp, nil
+		}
+	}
+
 	tickets, err := s.ticketRepo.ListTickets(ctx, sellerID)
 	if err != nil {
 		return nil, models.NewInternalError("Failed to list tickets", err)
@@ -436,6 +492,8 @@ func (s *ticketService) ListTickets(ctx context.Context, sellerID string) ([]*dt
 	for _, t := range tickets {
 		response = append(response, s.toTicketResponse(t))
 	}
+
+	s.cacheService.Set(ctx, cacheKey, response, 3*time.Second)
 	return response, nil
 }
 
@@ -447,6 +505,6 @@ func (s *ticketService) resolveQuotaSourceTx(ctx context.Context, tx *sql.Tx, se
 		}
 		return qs, nil
 	}
-	return models.QuotaSourceLibre, nil
+	return models.QuotaSourceNoAplica, nil
 }
 

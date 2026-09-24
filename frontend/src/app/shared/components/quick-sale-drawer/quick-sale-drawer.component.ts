@@ -1,6 +1,7 @@
-import { Component, EventEmitter, Input, Output, OnChanges, SimpleChanges, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnChanges, SimpleChanges, inject, signal, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import QRCode from 'qrcode';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../core/services/toast.service';
@@ -21,9 +22,12 @@ export class QuickSaleDrawerComponent implements OnChanges {
   private readonly apiService = inject(ApiService);
   private readonly authService = inject(AuthService);
   private readonly toastService = inject(ToastService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   loading = false;
+  authorizing = false;
   createdTicket: Ticket | null = null;
+  qrDataUrl: string | null = null;
 
   ticketType: 'SIMPLE' | 'CON_COMIDA' = 'SIMPLE';
   saleSource: 'ANTICIPADA' | 'PUERTA' = 'ANTICIPADA';
@@ -40,6 +44,9 @@ export class QuickSaleDrawerComponent implements OnChanges {
   freeQuotaRemaining = signal<number | null>(null);
   freeQuotaTotal = signal<number | null>(null);
 
+  priceSimple = signal<number | null>(null);
+  priceConComida = signal<number | null>(null);
+
   getEffectiveCountryCode(): string {
     if (this.countryCode === 'custom') {
       return (this.customCountryCode || '').replace(/\D/g, '');
@@ -50,7 +57,24 @@ export class QuickSaleDrawerComponent implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['isOpen']?.currentValue === true) {
       this.loadQuotaSummary();
+      this.loadTicketPrices();
     }
+  }
+
+  loadTicketPrices(): void {
+    this.apiService.getTicketPrices().subscribe({
+      next: (res) => {
+        if (res.success && res.data) {
+          for (const item of res.data) {
+            if (item.ticket_type === 'SIMPLE') {
+              this.priceSimple.set(item.price);
+            } else if (item.ticket_type === 'CON_COMIDA') {
+              this.priceConComida.set(item.price);
+            }
+          }
+        }
+      }
+    });
   }
 
   loadQuotaSummary(): void {
@@ -117,9 +141,11 @@ export class QuickSaleDrawerComponent implements OnChanges {
         this.loading = false;
         if (resp.success && resp.data) {
           this.createdTicket = resp.data;
+          this.generateQrCode();
           this.toastService.success('¡Entrada generada con éxito!');
           this.loadQuotaSummary();
           this.ticketCreated.emit(resp.data);
+          this.cdr.detectChanges();
         } else {
           this.toastService.error(resp.error || 'Error al emitir entrada');
         }
@@ -132,10 +158,63 @@ export class QuickSaleDrawerComponent implements OnChanges {
     });
   }
 
+  generateQrCode(): void {
+    const publicUrl = this.getPublicUrl();
+    if (!publicUrl) return;
+
+    const qrFn = QRCode.toDataURL || (QRCode as any).default?.toDataURL;
+    if (typeof qrFn === 'function') {
+      qrFn(publicUrl, {
+        width: 260,
+        margin: 2,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#1a101f', light: '#ffffff' }
+      })
+        .then((url: string) => {
+          this.qrDataUrl = url;
+          this.cdr.detectChanges();
+        })
+        .catch((err: any) => {
+          console.error('Error generating QR code:', err);
+        });
+    }
+  }
+
+  authorizeEntryNow(): void {
+    if (!this.createdTicket) return;
+    this.authorizing = true;
+    const token = this.createdTicket.publicToken || (this.createdTicket as any).public_token;
+    this.apiService.validateTicket({
+      public_token: token,
+      validation_type: 'ENTRADA'
+    }).subscribe({
+      next: (res) => {
+        this.authorizing = false;
+        if (res.success) {
+          if (this.createdTicket) {
+            this.createdTicket.status = 'USADO_ENTRADA';
+            this.ticketCreated.emit(this.createdTicket);
+          }
+          this.toastService.success('¡Ingreso autorizado y registrado con éxito!');
+          this.cdr.detectChanges();
+        } else {
+          this.toastService.error(res.error || 'Error al autorizar ingreso');
+        }
+      },
+      error: (err) => {
+        this.authorizing = false;
+        const msg = err.error?.error || err.error?.message || 'Error al autorizar ingreso';
+        this.toastService.error(msg);
+      }
+    });
+  }
+
   getPublicUrl(): string {
     if (!this.createdTicket) return '';
-    const domain = window.location.origin;
-    return `${domain}/tickets/public/${this.createdTicket.publicToken}`;
+    const token = this.createdTicket.publicToken || (this.createdTicket as any).public_token;
+    if (!token) return '';
+    const domain = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+    return `${domain}/tickets/public/${token}`;
   }
 
   getWhatsAppLink(): string {
@@ -203,6 +282,8 @@ export class QuickSaleDrawerComponent implements OnChanges {
 
   resetForm(): void {
     this.createdTicket = null;
+    this.qrDataUrl = null;
+    this.authorizing = false;
     this.firstName = '';
     this.lastName = '';
     this.phone = '';

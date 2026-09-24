@@ -59,6 +59,19 @@ describe('Navigation Guards', () => {
         done();
       });
     });
+
+    it('should redirect to /login if refreshToken throws an error', (done) => {
+      authServiceSpy.isAuthenticated.and.returnValue(false);
+      authServiceSpy.refreshToken.and.returnValue(throwError(() => new Error('Refresh error')));
+
+      const obs$ = TestBed.runInInjectionContext(() => authGuard(dummyRoute, dummyState)) as any;
+
+      obs$.subscribe((allowed: boolean) => {
+        expect(allowed).toBeFalse();
+        expect(routerSpy.navigate).toHaveBeenCalledWith(['/login'], { queryParams: { returnUrl: '/protected-page' } });
+        done();
+      });
+    });
   });
 
   describe('guestGuard', () => {
@@ -69,6 +82,19 @@ describe('Navigation Guards', () => {
 
       expect(result).toBeFalse();
       expect(routerSpy.navigate).toHaveBeenCalledWith(['/dashboard']);
+    });
+
+    it('should redirect to /dashboard if unauthenticated initially but silent refresh succeeds', (done) => {
+      authServiceSpy.isAuthenticated.and.returnValues(false, true);
+      authServiceSpy.refreshToken.and.returnValue(of({ success: true } as ApiResponse<TokenResponse>));
+
+      const obs$ = TestBed.runInInjectionContext(() => guestGuard(dummyRoute, dummyState)) as any;
+
+      obs$.subscribe((allowed: boolean) => {
+        expect(allowed).toBeFalse();
+        expect(routerSpy.navigate).toHaveBeenCalledWith(['/dashboard']);
+        done();
+      });
     });
 
     it('should allow access to guest route if unauthenticated and refresh fails', (done) => {
