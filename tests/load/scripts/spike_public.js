@@ -27,9 +27,10 @@ export const options = {
     },
   },
   thresholds: {
-    // En un spike, toleramos degradación pero NO crashes (500s).
+    // En un spike, toleramos 429 (Rate Limit), pero NO crashes (500s).
+    // http_req_failed default de k6 marca los 400s y 429s como fallos, así que
+    // no podemos usarlo con un rate bajo.
     spike_server_errors: ['count==0'],
-    http_req_failed: ['rate<0.10'], // Máximo 10% de errores en spike
   },
 };
 
@@ -44,7 +45,7 @@ export default function spikePublic() {
   });
 
   check(res, {
-    'status 200 or 404': (r) => r.status === 200 || r.status === 404,
+    'status 200, 404 or 429': (r) => r.status === 200 || r.status === 404 || r.status === 429,
     'no 500': (r) => r.status !== 500,
   });
 

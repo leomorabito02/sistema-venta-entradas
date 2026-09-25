@@ -27,6 +27,16 @@ func NewAuthController(authService services.AuthService, jsonView *views.JSONVie
 	}
 }
 
+// GoogleLogin godoc
+// @Summary      Google Login
+// @Description  Logs in a user via Google ID Token
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.GoogleAuthRequest true "Google ID Token"
+// @Success      200 {object} models.Response{data=dto.TokenResponse} "Login successful"
+// @Failure      400 {object} models.Response "Invalid payload"
+// @Router       /auth/google [post]
 func (c *AuthController) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 	var req dto.GoogleAuthRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -102,6 +112,15 @@ func (c *AuthController) Logout(w http.ResponseWriter, r *http.Request) {
 	c.jsonView.Success(w, http.StatusOK, "Logged out successfully", nil)
 }
 
+// ListUsers godoc
+// @Summary      List Users
+// @Description  Retrieves a list of all users
+// @Tags         auth
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} models.Response{data=[]models.User} "Users retrieved successfully"
+// @Failure      500 {object} models.Response "Internal error"
+// @Router       /auth/users [get]
 func (c *AuthController) ListUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := c.authService.ListUsers(r.Context())
 	if err != nil {

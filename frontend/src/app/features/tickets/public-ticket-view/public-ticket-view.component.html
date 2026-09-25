@@ -63,14 +63,14 @@
       <div class="status-text">
         <strong class="status-title">
           {{
-            ticket()?.status === 'VENDIDO' ? 'BONO ACTIVO (PENDIENTE DE INGRESO)' :
-            ticket()?.status === 'USADO_ENTRADA' ? (ticket()?.ticket_type === 'CON_COMIDA' ? 'ENTRADA VALIDADA (PENDIENTE COMIDA)' : 'ENTRADA VALIDADA') :
-            ticket()?.status === 'USADO_COMIDA' ? 'BONO UTILIZADO COMPLETAMENTE' : 'BONO ANULADO'
+            ticket()?.status === 'VENDIDO' ? 'Mostrá el QR en el ingreso' :
+            ticket()?.status === 'USADO_ENTRADA' ? (ticket()?.ticket_type === 'CON_COMIDA' ? '¡ENTRASTE! PODÉS RETIRAR TU COMIDA' : 'GRACIAS POR COLABORAR!') :
+            ticket()?.status === 'USADO_COMIDA' ? '¡DISFRUTÁ TU COMIDA!' : 'BONO ANULADO'
           }}
         </strong>
         <span class="status-sub">
           <ng-container *ngIf="ticket()?.status === 'VENDIDO'">
-            Presenta el código de 4 dígitos o escanea el QR en el ingreso.
+            En el ingreso a la peña, mostrá éste código QR o dictá el número en el puesto de entrada.
           </ng-container>
           <ng-container *ngIf="ticket()?.status === 'USADO_ENTRADA'">
             <ng-container *ngIf="ticket()?.ticket_type === 'CON_COMIDA'">
@@ -84,7 +84,7 @@
             ¡Muchas gracias por colaborar con el Seminario!
           </ng-container>
           <ng-container *ngIf="ticket()?.status === 'ANULADO'">
-            Bono anulado. No válido para ingreso ni comida.
+            Bono anulado. No será admitido en la peña .
           </ng-container>
         </span>
       </div>
@@ -93,15 +93,13 @@
     <!-- Code & QR Section -->
     <div class="code-qr-section neu-card">
       <div class="code-box">
-        <span class="code-label">CÓDIGO DE VALIDACIÓN (4 DÍGITOS)</span>
+        <span class="code-label">CÓDIGO DE VALIDACIÓN</span>
         <div class="four-code">{{ ticket()?.four_digit_code }}</div>
-        <p class="code-hint">Dicta este código de 4 dígitos o escanea el QR</p>
       </div>
 
       <div class="qr-box">
         <div *ngIf="qrDataUrl()" class="qr-img-wrapper">
           <img [src]="qrDataUrl()" alt="Código QR de Validación (Código: {{ ticket()?.four_digit_code }})" class="qr-code-img">
-          <span class="qr-text">Código QR Oficial ({{ ticket()?.four_digit_code }})</span>
         </div>
         <div *ngIf="!qrDataUrl()" class="qr-placeholder">
           <span class="qr-icon"><svg class="icon" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span>
@@ -125,7 +123,7 @@
       </div>
 
       <div class="info-item neu-card">
-        <span class="info-label"><svg class="icon" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> Vendedor / Emisor:</span>
+        <span class="info-label"><svg class="icon" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> Vendedor:</span>
         <strong class="info-value">{{ ticket()?.seller_name }}</strong>
       </div>
 
@@ -137,7 +135,7 @@
       </div>
 
       <div class="info-item neu-card">
-        <span class="info-label"><svg class="icon" viewBox="0 0 24 24"><path d="M3 11h18"/><path d="M5 11C5 7.13 8.13 4 12 4s7 3.13 7 7"/><path d="M4 15h16a1 1 0 0 1 1 1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1z"/></svg> Almuerzo / Comida:</span>
+        <span class="info-label"><svg class="icon" viewBox="0 0 24 24"><path d="M3 11h18"/><path d="M5 11C5 7.13 8.13 4 12 4s7 3.13 7 7"/><path d="M4 15h16a1 1 0 0 1 1 1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a1 1 0 0 1 1-1z"/></svg> Comida:</span>
         <strong class="info-value" [class.text-comida]="ticket()?.includes_food">
           {{ ticket()?.includes_food ? 'Incluye 1 Choripán' : 'No incluye choripán' }}
         </strong>
@@ -158,12 +156,12 @@
     <div class="instructions-box neu-card">
       <h3>Información del Evento</h3>
       <ul>
-        <li>Guarda o toma una captura de pantalla de este bono digital.</li>
+        <li>Guarda el enlace de tu entrada o toma una captura de pantalla.</li>
         <li *ngIf="ticket()?.status === 'VENDIDO'">
-          Dicta el código <strong>{{ ticket()?.four_digit_code }}</strong> en el ingreso.
+          Dicta el código <strong>{{ ticket()?.four_digit_code }}</strong> o muestra el QR en el ingreso.
         </li>
         <li *ngIf="ticket()?.status === 'USADO_ENTRADA' && ticket()?.ticket_type === 'CON_COMIDA'">
-          Dicta el mismo código <strong>{{ ticket()?.four_digit_code }}</strong> en la barra de comida.
+          Dicta el mismo código <strong>{{ ticket()?.four_digit_code }}</strong> en la barra de comida para retirar tu choripán.
         </li>
         <li>Este bono es personal e intransferible.</li>
       </ul>

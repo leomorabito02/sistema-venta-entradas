@@ -1,5 +1,7 @@
 <section class="login-page">
-  <div class="neu-card login-card">
+  <app-skeleton-loader *ngIf="authService.isInitializing()" type="login"></app-skeleton-loader>
+
+  <div *ngIf="!authService.isInitializing()" class="neu-card login-card">
     <div class="seminario-header">
       <div class="seminario-logo-container">
         <img src="assets/logo-seminario-removebg-preview.png" alt="Logo Peña Seminario 2026" class="peña-logo-img">
