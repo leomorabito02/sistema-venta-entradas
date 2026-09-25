@@ -101,6 +101,7 @@ else
 fi
 
 echo "Generating Swagger Documentation (OpenAPI spec)..."
+go install github.com/swaggo/swag/cmd/swag@latest
 swag init -g cmd/server/main.go -o docs
 
 TEST_JWT=""
