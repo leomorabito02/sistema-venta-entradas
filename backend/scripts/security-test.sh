@@ -117,6 +117,8 @@ if [ -n "$TEST_JWT" ]; then
 fi
 
 echo "Running OWASP ZAP API Scan via Docker (target: $ZAP_TARGET)..."
+touch zap_report.html
+chmod 666 zap_report.html
 set +e
 docker run --rm \
   --add-host host.docker.internal:host-gateway \
