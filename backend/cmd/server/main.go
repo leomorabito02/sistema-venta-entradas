@@ -1,3 +1,11 @@
+// @title           Sistema de Venta de Entradas API
+// @version         1.0
+// @description     API para la gestión de ventas de bonos y entradas.
+// @host      localhost:8080
+// @BasePath  /api
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 package main
 
 import (

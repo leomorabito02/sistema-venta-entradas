@@ -1,0 +1,152 @@
+basePath: /api
+definitions:
+  dto.GoogleAuthRequest:
+    properties:
+      id_token:
+        type: string
+    type: object
+  dto.TokenResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      is_new:
+        type: boolean
+      status:
+        $ref: '#/definitions/models.UserStatus'
+      token_type:
+        type: string
+      user:
+        $ref: '#/definitions/dto.UserResponse'
+    type: object
+  dto.UserResponse:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      role:
+        $ref: '#/definitions/models.UserRole'
+      status:
+        $ref: '#/definitions/models.UserStatus'
+    type: object
+  models.Response:
+    properties:
+      data: {}
+      error:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  models.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      google_id:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      role:
+        $ref: '#/definitions/models.UserRole'
+      status:
+        $ref: '#/definitions/models.UserStatus'
+      updated_at:
+        type: string
+    type: object
+  models.UserRole:
+    enum:
+    - ADMIN
+    - SELLER
+    type: string
+    x-enum-varnames:
+    - RoleAdmin
+    - RoleSeller
+  models.UserStatus:
+    enum:
+    - PENDING
+    - ACTIVE
+    - DISABLED
+    type: string
+    x-enum-varnames:
+    - StatusPending
+    - StatusActive
+    - StatusDisabled
+host: localhost:8080
+info:
+  contact: {}
+  description: API para la gestión de ventas de bonos y entradas.
+  title: Sistema de Venta de Entradas API
+  version: "1.0"
+paths:
+  /auth/google:
+    post:
+      consumes:
+      - application/json
+      description: Logs in a user via Google ID Token
+      parameters:
+      - description: Google ID Token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.GoogleAuthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.TokenResponse'
+              type: object
+        "400":
+          description: Invalid payload
+          schema:
+            $ref: '#/definitions/models.Response'
+      summary: Google Login
+      tags:
+      - auth
+  /auth/users:
+    get:
+      description: Retrieves a list of all users
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Users retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.User'
+                  type: array
+              type: object
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - BearerAuth: []
+      summary: List Users
+      tags:
+      - auth
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

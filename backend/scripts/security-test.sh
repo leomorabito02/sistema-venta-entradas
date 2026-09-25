@@ -11,19 +11,35 @@ cd "$(dirname "$0")/.."
 
 
 echo "======================================"
+
+API_PID=""
+function cleanup {
+  echo "Shutting down resources..."
+  if [ -n "$API_PID" ]; then
+    kill $API_PID || true
+  fi
+  docker rm -f security_test_db || true
+}
+trap cleanup EXIT
+
 echo " 1) SAST: Static Application Security Testing"
 echo "======================================"
 echo "Installing gosec..."
 go install github.com/securego/gosec/v2/cmd/gosec@latest
 echo "Running gosec..."
 set +e
-gosec -fmt=json -out=sast_report.json ./...
+# Generate the full report (ignoring exit code for this step)
+gosec -fmt=json -out=sast_report.json ./... >/dev/null 2>&1
+
+# Run again to print and fail only on HIGH severity
+gosec -severity high ./...
 SAST_EXIT=$?
 set -e
 if [ $SAST_EXIT -eq 0 ]; then
   echo "✅ SAST passed."
 else
-  echo "❌ SAST found vulnerabilities. Check sast_report.json"
+  echo "❌ SAST found HIGH vulnerabilities! Pipeline will be stopped."
+  exit 1
 fi
 
 echo ""
@@ -48,8 +64,6 @@ echo "======================================"
 echo " 3) DAST: Dynamic Application Security Testing (OWASP ZAP)"
 echo "======================================"
 
-API_PID=""
-
 if [ -n "${DAST_TARGET_URL:-}" ]; then
   echo "Using deployed service: $DAST_TARGET_URL"
   ZAP_TARGET="$DAST_TARGET_URL"
@@ -72,8 +86,12 @@ else
   export FIREBASE_PROJECT_ID="test-project"
   export PORT="8089"
 
-  echo "Starting API server in background..."
-  go run cmd/server/main.go &
+  echo "Running database migrations..."
+  go run cmd/migrate/main.go
+
+  echo "Building and starting API server in background..."
+  go build -o /tmp/security_test_server cmd/server/main.go
+  /tmp/security_test_server &
   API_PID=$!
 
   echo "Waiting for API to initialize (10s)..."
@@ -82,21 +100,30 @@ else
   ZAP_TARGET="http://host.docker.internal:8089"
 fi
 
-echo "Running OWASP ZAP Baseline Scan via Docker (target: $ZAP_TARGET)..."
+echo "Generating Swagger Documentation (OpenAPI spec)..."
+swag init -g cmd/server/main.go -o docs
+
+TEST_JWT=""
+if [ -n "$DATABASE_URL" ]; then
+  echo "Generating test JWT token..."
+  TEST_JWT=$(go run tools/gen_test_jwt/main.go || echo "")
+fi
+
+ZAP_OPTS=("-t" "docs/swagger.json" "-f" "openapi" "-O" "$ZAP_TARGET" "-r" "zap_report.html")
+if [ -n "$TEST_JWT" ]; then
+  echo "JWT generated successfully. Configuring ZAP to use it..."
+  ZAP_OPTS+=("-z" "-config replacer.full_list(0).description=auth1 -config replacer.full_list(0).enabled=true -config replacer.full_list(0).matchtype=req_header -config replacer.full_list(0).matchstr=Authorization -config replacer.full_list(0).regex=false -config replacer.full_list(0).replacement=Bearer $TEST_JWT")
+fi
+
+echo "Running OWASP ZAP API Scan via Docker (target: $ZAP_TARGET)..."
 set +e
 docker run --rm \
   --add-host host.docker.internal:host-gateway \
   -v "$(pwd)":/zap/wrk/:rw \
   -t zaproxy/zap-stable \
-  zap-baseline.py -t "$ZAP_TARGET" -r zap_report.html -I
+  zap-api-scan.py "${ZAP_OPTS[@]}"
 DAST_EXIT=$?
 set -e
-
-echo "Shutting down resources..."
-if [ -n "$API_PID" ]; then
-  kill $API_PID || true
-  docker rm -f security_test_db || true
-fi
 
 if [ $DAST_EXIT -eq 0 ]; then
   echo "✅ DAST passed."

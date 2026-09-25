@@ -70,6 +70,10 @@ jobs:
           echo "Backend total coverage: ${COVERAGE}%"
           awk -v coverage="$COVERAGE" 'BEGIN { if (coverage < 60) { printf "::error::Backend coverage %.1f%% is below 60%%\n", coverage; exit 1 } }'
 
+      - name: Run Fuzz Testing (Security)
+        working-directory: backend
+        run: go test -fuzz=FuzzValidateAccessToken -fuzztime=15s ./internal/security/
+
   ci-frontend:
     name: CI — Frontend (Angular)
     runs-on: ubuntu-latest

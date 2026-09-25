@@ -1,0 +1,239 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "API para la gestión de ventas de bonos y entradas.",
+        "title": "Sistema de Venta de Entradas API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api",
+    "paths": {
+        "/auth/google": {
+            "post": {
+                "description": "Logs in a user via Google ID Token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Google Login",
+                "parameters": [
+                    {
+                        "description": "Google ID Token",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.GoogleAuthRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Login successful",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/models.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dto.TokenResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid payload",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/users": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves a list of all users",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "List Users",
+                "responses": {
+                    "200": {
+                        "description": "Users retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/models.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.User"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "dto.GoogleAuthRequest": {
+            "type": "object",
+            "properties": {
+                "id_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.TokenResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "expires_in": {
+                    "type": "integer"
+                },
+                "is_new": {
+                    "type": "boolean"
+                },
+                "status": {
+                    "$ref": "#/definitions/models.UserStatus"
+                },
+                "token_type": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/dto.UserResponse"
+                }
+            }
+        },
+        "dto.UserResponse": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "role": {
+                    "$ref": "#/definitions/models.UserRole"
+                },
+                "status": {
+                    "$ref": "#/definitions/models.UserStatus"
+                }
+            }
+        },
+        "models.Response": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "error": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "models.User": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "google_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "role": {
+                    "$ref": "#/definitions/models.UserRole"
+                },
+                "status": {
+                    "$ref": "#/definitions/models.UserStatus"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.UserRole": {
+            "type": "string",
+            "enum": [
+                "ADMIN",
+                "SELLER"
+            ],
+            "x-enum-varnames": [
+                "RoleAdmin",
+                "RoleSeller"
+            ]
+        },
+        "models.UserStatus": {
+            "type": "string",
+            "enum": [
+                "PENDING",
+                "ACTIVE",
+                "DISABLED"
+            ],
+            "x-enum-varnames": [
+                "StatusPending",
+                "StatusActive",
+                "StatusDisabled"
+            ]
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

@@ -127,7 +127,7 @@ func (s *ticketService) attemptCreateTicketTx(ctx context.Context, sellerID stri
 	}
 	defer func() {
 		if tx != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 		}
 	}()
 
