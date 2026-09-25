@@ -110,7 +110,7 @@ if [ -n "$DATABASE_URL" ]; then
   TEST_JWT=$(go run tools/gen_test_jwt/main.go || echo "")
 fi
 
-ZAP_OPTS=("-t" "docs/swagger.json" "-f" "openapi" "-O" "$ZAP_TARGET" "-r" "zap_report.html")
+ZAP_OPTS=("-t" "docs/swagger.json" "-f" "openapi" "-O" "$ZAP_TARGET" "-r" "zap_report.html" "-I")
 if [ -n "$TEST_JWT" ]; then
   echo "JWT generated successfully. Configuring ZAP to use it..."
   ZAP_OPTS+=("-z" "-config replacer.full_list(0).description=auth1 -config replacer.full_list(0).enabled=true -config replacer.full_list(0).matchtype=req_header -config replacer.full_list(0).matchstr=Authorization -config replacer.full_list(0).regex=false -config replacer.full_list(0).replacement=Bearer $TEST_JWT")
