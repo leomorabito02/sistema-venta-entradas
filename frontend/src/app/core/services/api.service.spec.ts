@@ -125,6 +125,27 @@ describe('ApiService', () => {
     const req = httpMock.expectOne((r) => r.url.endsWith('/api/tickets'));
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual(createReq);
+    expect(req.request.headers.has('Idempotency-Key')).toBeFalse();
+    req.flush({ success: true, data: rawBackendTicket });
+  });
+
+  it('should include Idempotency-Key header when idempotency_key is provided', () => {
+    const createReq: CreateTicketRequest = {
+      idempotency_key: 'custom-uuid-key-1234',
+      ticket_type: 'SIMPLE',
+      sale_source: 'ANTICIPADA',
+      first_name: 'Ana',
+      last_name: 'Lopez',
+      phone: '123456789'
+    };
+
+    service.createTicket(createReq).subscribe((res) => {
+      expect(res.success).toBeTrue();
+    });
+
+    const req = httpMock.expectOne((r) => r.url.endsWith('/api/tickets'));
+    expect(req.request.method).toBe('POST');
+    expect(req.request.headers.get('Idempotency-Key')).toBe('custom-uuid-key-1234');
     req.flush({ success: true, data: rawBackendTicket });
   });
 

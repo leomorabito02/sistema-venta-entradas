@@ -2,6 +2,7 @@ package services_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"backend/internal/dto"
@@ -81,6 +82,120 @@ func TestTicketService_CreateTicket_Success(t *testing.T) {
 	}
 	if resp.Status != models.TicketStatusVendido {
 		t.Errorf("Expected initial status VENDIDO, got %s", resp.Status)
+	}
+}
+
+func TestTicketService_CreateTicket_Idempotency(t *testing.T) {
+	svc, ticketRepo, quotaRepo, _, _ := setupTicketServiceTest()
+	ctx := context.Background()
+
+	email := "idempotent@example.com"
+	req := &dto.CreateTicketRequest{
+		IdempotencyKey: "unique-key-12345",
+		TicketType:     models.TicketTypeSimple,
+		SaleSource:     models.SaleSourceAnticipada,
+		QuotaSource:    models.QuotaSourcePersonal,
+		FirstName:      "Carlos",
+		LastName:       "Tevez",
+		Phone:          "+54 9 11 9999 8888",
+		Email:          &email,
+	}
+
+	// First execution
+	resp1, err := svc.CreateTicket(ctx, "seller-uuid-1", req)
+	if err != nil {
+		t.Fatalf("First CreateTicket failed: %v", err)
+	}
+
+	quota1 := quotaRepo.SellerQuotas["seller-uuid-1"].UsedQuota
+	buyerCount1 := len(ticketRepo.Buyers)
+	ticketCount1 := len(ticketRepo.Tickets)
+
+	// Second execution with same idempotency key
+	resp2, err := svc.CreateTicket(ctx, "seller-uuid-1", req)
+	if err != nil {
+		t.Fatalf("Second CreateTicket failed: %v", err)
+	}
+
+	// Must return the exact same ticket
+	if resp1.ID != resp2.ID {
+		t.Errorf("Expected same ticket ID, got %s and %s", resp1.ID, resp2.ID)
+	}
+	if resp1.FourDigitCode != resp2.FourDigitCode {
+		t.Errorf("Expected same FourDigitCode, got %s and %s", resp1.FourDigitCode, resp2.FourDigitCode)
+	}
+	if resp1.PublicToken != resp2.PublicToken {
+		t.Errorf("Expected same PublicToken, got %s and %s", resp1.PublicToken, resp2.PublicToken)
+	}
+
+	// Quota, buyers, and tickets must NOT have increased
+	quota2 := quotaRepo.SellerQuotas["seller-uuid-1"].UsedQuota
+	if quota1 != quota2 {
+		t.Errorf("Used quota increased on idempotent call: %d -> %d", quota1, quota2)
+	}
+	if len(ticketRepo.Buyers) != buyerCount1 {
+		t.Errorf("Buyer was duplicated: %d -> %d", buyerCount1, len(ticketRepo.Buyers))
+	}
+	if len(ticketRepo.Tickets) != ticketCount1 {
+		t.Errorf("Ticket was duplicated: %d -> %d", ticketCount1, len(ticketRepo.Tickets))
+	}
+}
+
+func TestTicketService_CreateTicket_ConcurrentIdempotency(t *testing.T) {
+	svc, ticketRepo, quotaRepo, _, _ := setupTicketServiceTest()
+	ctx := context.Background()
+
+	const concurrentCalls = 10
+	var wg sync.WaitGroup
+	wg.Add(concurrentCalls)
+
+	email := "concurrent@example.com"
+	req := &dto.CreateTicketRequest{
+		IdempotencyKey: "concurrent-key-999",
+		TicketType:     models.TicketTypeSimple,
+		SaleSource:     models.SaleSourceAnticipada,
+		QuotaSource:    models.QuotaSourcePersonal,
+		FirstName:      "Lionel",
+		LastName:       "Messi",
+		Phone:          "+54 9 11 1010 1010",
+		Email:          &email,
+	}
+
+	results := make([]*dto.TicketResponse, concurrentCalls)
+	errs := make([]error, concurrentCalls)
+
+	for i := 0; i < concurrentCalls; i++ {
+		idx := i
+		go func() {
+			defer wg.Done()
+			results[idx], errs[idx] = svc.CreateTicket(ctx, "seller-uuid-1", req)
+		}()
+	}
+
+	wg.Wait()
+
+	firstID := ""
+	for i := 0; i < concurrentCalls; i++ {
+		if errs[i] != nil {
+			t.Fatalf("Concurrent call %d failed: %v", i, errs[i])
+		}
+		if results[i] == nil {
+			t.Fatalf("Concurrent call %d returned nil result", i)
+		}
+		if firstID == "" {
+			firstID = results[i].ID
+		} else if results[i].ID != firstID {
+			t.Errorf("Mismatch in ticket ID for concurrent call %d: got %s, expected %s", i, results[i].ID, firstID)
+		}
+	}
+
+	// Used quota must have incremented by exactly 1
+	if quotaRepo.SellerQuotas["seller-uuid-1"].UsedQuota != 1 {
+		t.Errorf("Expected UsedQuota = 1, got %d", quotaRepo.SellerQuotas["seller-uuid-1"].UsedQuota)
+	}
+	// TicketRepo must contain exactly 1 ticket
+	if len(ticketRepo.Tickets) != 1 {
+		t.Errorf("Expected 1 ticket in repo, got %d", len(ticketRepo.Tickets))
 	}
 }
 

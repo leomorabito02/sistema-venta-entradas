@@ -179,16 +179,21 @@ func (r *postgresQuotaRepository) SetSellerQuota(ctx context.Context, adminID st
 	}
 	defer tx.Rollback()
 
-	var previousAssigned int
-	err = tx.QueryRowContext(ctx, `SELECT assigned_quota FROM seller_quotas WHERE seller_id = $1 FOR UPDATE`, sellerID).
-		Scan(&previousAssigned)
+	var previousAssigned, usedQuota int
+	err = tx.QueryRowContext(ctx, `SELECT assigned_quota, used_quota FROM seller_quotas WHERE seller_id = $1 FOR UPDATE`, sellerID).
+		Scan(&previousAssigned, &usedQuota)
 	if errors.Is(err, sql.ErrNoRows) {
 		previousAssigned = 0
 		_, err = tx.ExecContext(ctx, `
 			INSERT INTO seller_quotas (seller_id, assigned_quota, used_quota, used_free_quota)
 			VALUES ($1, $2, 0, 0)
 		`, sellerID, assigned)
+	} else if err != nil {
+		return err
 	} else {
+		if assigned < usedQuota {
+			return models.NewBadRequestError(fmt.Sprintf("cannot reduce personal quota to %d: seller has already used %d", assigned, usedQuota), nil)
+		}
 		_, err = tx.ExecContext(ctx, `
 			UPDATE seller_quotas SET assigned_quota = $1, updated_at = NOW() WHERE seller_id = $2
 		`, assigned, sellerID)
@@ -215,6 +220,15 @@ func (r *postgresQuotaRepository) SetAllSellersPersonalQuota(ctx context.Context
 		return err
 	}
 	defer tx.Rollback()
+
+	var maxUsed int
+	err = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(used_quota), 0) FROM seller_quotas`).Scan(&maxUsed)
+	if err != nil {
+		return err
+	}
+	if assigned < maxUsed {
+		return models.NewBadRequestError(fmt.Sprintf("cannot reduce personal quota to %d for all sellers: maximum used personal quota is %d", assigned, maxUsed), nil)
+	}
 
 	// 1. Update or insert default personal quota config (for future new sellers)
 	_, err = tx.ExecContext(ctx, `
@@ -255,9 +269,9 @@ func (r *postgresQuotaRepository) SetSellerFreeQuota(ctx context.Context, adminI
 	}
 	defer tx.Rollback()
 
-	var previousAssigned int
-	err = tx.QueryRowContext(ctx, `SELECT assigned_free_quota FROM seller_quotas WHERE seller_id = $1 FOR UPDATE`, sellerID).
-		Scan(&previousAssigned)
+	var previousAssigned, usedFreeQuota int
+	err = tx.QueryRowContext(ctx, `SELECT assigned_free_quota, used_free_quota FROM seller_quotas WHERE seller_id = $1 FOR UPDATE`, sellerID).
+		Scan(&previousAssigned, &usedFreeQuota)
 	if errors.Is(err, sql.ErrNoRows) {
 		previousAssigned = 5
 		var defaultQuota int
@@ -266,7 +280,12 @@ func (r *postgresQuotaRepository) SetSellerFreeQuota(ctx context.Context, adminI
 			INSERT INTO seller_quotas (seller_id, assigned_quota, used_quota, assigned_free_quota, used_free_quota)
 			VALUES ($1, $2, 0, $3, 0)
 		`, sellerID, defaultQuota, assigned)
+	} else if err != nil {
+		return err
 	} else {
+		if assigned < usedFreeQuota {
+			return models.NewBadRequestError(fmt.Sprintf("cannot reduce free quota to %d: seller has already used %d", assigned, usedFreeQuota), nil)
+		}
 		_, err = tx.ExecContext(ctx, `
 			UPDATE seller_quotas SET assigned_free_quota = $1, updated_at = NOW() WHERE seller_id = $2
 		`, assigned, sellerID)
@@ -292,6 +311,15 @@ func (r *postgresQuotaRepository) SetAllSellersFreeQuota(ctx context.Context, ad
 		return err
 	}
 	defer tx.Rollback()
+
+	var maxUsedFree int
+	err = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(used_free_quota), 0) FROM seller_quotas`).Scan(&maxUsedFree)
+	if err != nil {
+		return err
+	}
+	if assigned < maxUsedFree {
+		return models.NewBadRequestError(fmt.Sprintf("cannot reduce free quota to %d for all sellers: maximum used free quota is %d", assigned, maxUsedFree), nil)
+	}
 
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO default_quota_configs (id, default_personal_quota, default_free_quota, updated_at)

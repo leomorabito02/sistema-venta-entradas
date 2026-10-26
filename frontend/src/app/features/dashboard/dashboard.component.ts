@@ -343,6 +343,7 @@ export class DashboardComponent implements OnInit {
   detailQrDataUrl = signal<string | null>(null);
   authorizingModalEntry = signal<boolean>(false);
   authorizingDetailEntry = signal<boolean>(false);
+  issueIdempotencyKey = signal<string>(crypto.randomUUID());
 
   getEffectiveBuyerCountryCode(): string {
     if (this.buyerCountryCode() === 'custom') {
@@ -373,6 +374,7 @@ export class DashboardComponent implements OnInit {
     this.createdTicket.set(null);
     this.modalQrDataUrl.set(null);
     this.copiedPublicUrl.set(false);
+    this.issueIdempotencyKey.set(crypto.randomUUID());
     this.showIssueModal.set(true);
 
     const userId = this.authService.currentUser()?.id;
@@ -482,6 +484,7 @@ export class DashboardComponent implements OnInit {
     const fullPhone = code ? `+${code}${cleanPhoneDigits}` : cleanPhoneDigits;
 
     const payload = {
+      idempotency_key: this.issueIdempotencyKey(),
       ticket_type: this.newTicketType(),
       sale_source: saleSource,
       quota_source: quotaSource,
@@ -495,6 +498,7 @@ export class DashboardComponent implements OnInit {
       next: (res) => {
         this.issuingTicket.set(false);
         if (res.success && res.data) {
+          this.issueIdempotencyKey.set(crypto.randomUUID());
           this.createdTicket.set(res.data);
           this.generateModalQrCode(res.data);
           this.issueStep.set(4);
@@ -594,7 +598,7 @@ export class DashboardComponent implements OnInit {
     navigator.clipboard.writeText(fullUrl).then(() => {
       this.copiedPublicUrl.set(true);
       setTimeout(() => this.copiedPublicUrl.set(false), 2500);
-    });
+    }).catch(() => {});
   }
 
   copyPublicUrl(): void {
@@ -605,7 +609,7 @@ export class DashboardComponent implements OnInit {
     navigator.clipboard.writeText(fullUrl).then(() => {
       this.copiedPublicUrl.set(true);
       setTimeout(() => this.copiedPublicUrl.set(false), 2500);
-    });
+    }).catch(() => {});
   }
 
   formatStatus(status?: string): string {

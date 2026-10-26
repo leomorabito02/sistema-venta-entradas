@@ -84,7 +84,11 @@ export class ApiService {
   }
 
   createTicket(req: CreateTicketRequest): Observable<ApiResponse<Ticket>> {
-    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/api/tickets`, req).pipe(
+    const headers: { [header: string]: string } = {};
+    if (req.idempotency_key) {
+      headers['Idempotency-Key'] = req.idempotency_key;
+    }
+    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/api/tickets`, req, { headers }).pipe(
       map(res => {
         if (res.success && res.data) res.data = this.mapTicket(res.data);
         return res;

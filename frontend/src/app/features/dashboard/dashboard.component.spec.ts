@@ -312,7 +312,9 @@ describe('DashboardComponent', () => {
       component.quotaOption.set('PERSONAL');
       component.submitIssueTicket();
       
-      expect(apiServiceSpy.createTicket).toHaveBeenCalled();
+      expect(apiServiceSpy.createTicket).toHaveBeenCalledWith(jasmine.objectContaining({
+        idempotency_key: jasmine.any(String)
+      }));
       expect(component.createdTicket()).toBeDefined();
       expect(component.issueStep()).toBe(4);
     });

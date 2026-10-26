@@ -23,6 +23,7 @@ export interface TokenResponse {
 }
 
 export interface CreateTicketPayload {
+  idempotency_key?: string;
   ticket_type: 'SIMPLE' | 'CON_COMIDA';
   sale_source: 'ANTICIPADA' | 'PUERTA';
   quota_source?: 'PERSONAL' | 'LIBRE';

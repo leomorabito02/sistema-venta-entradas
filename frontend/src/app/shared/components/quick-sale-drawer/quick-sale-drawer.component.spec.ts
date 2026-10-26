@@ -158,6 +158,7 @@ describe('QuickSaleDrawerComponent', () => {
       component.submitSale();
 
       expect(apiServiceSpy.createTicket).toHaveBeenCalledWith({
+        idempotency_key: jasmine.any(String),
         ticket_type: 'SIMPLE',
         sale_source: 'ANTICIPADA',
         quota_source: 'PERSONAL',

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"backend/internal/models"
@@ -199,11 +200,19 @@ func (m *MockQuotaRepository) SetSellerQuota(ctx context.Context, adminID string
 		q = &models.SellerQuota{SellerID: sellerID}
 		m.SellerQuotas[sellerID] = q
 	}
+	if assigned < q.UsedQuota {
+		return models.NewBadRequestError(fmt.Sprintf("cannot reduce personal quota to %d: seller has already used %d", assigned, q.UsedQuota), nil)
+	}
 	q.AssignedQuota = assigned
 	return nil
 }
 
 func (m *MockQuotaRepository) SetAllSellersPersonalQuota(ctx context.Context, adminID string, assigned int) error {
+	for _, q := range m.SellerQuotas {
+		if assigned < q.UsedQuota {
+			return models.NewBadRequestError(fmt.Sprintf("cannot reduce personal quota to %d for all sellers: maximum used personal quota is %d", assigned, q.UsedQuota), nil)
+		}
+	}
 	for _, q := range m.SellerQuotas {
 		q.AssignedQuota = assigned
 	}
@@ -216,11 +225,19 @@ func (m *MockQuotaRepository) SetSellerFreeQuota(ctx context.Context, adminID st
 		q = &models.SellerQuota{SellerID: sellerID, AssignedFreeQuota: 5}
 		m.SellerQuotas[sellerID] = q
 	}
+	if assigned < q.UsedFreeQuota {
+		return models.NewBadRequestError(fmt.Sprintf("cannot reduce free quota to %d: seller has already used %d", assigned, q.UsedFreeQuota), nil)
+	}
 	q.AssignedFreeQuota = assigned
 	return nil
 }
 
 func (m *MockQuotaRepository) SetAllSellersFreeQuota(ctx context.Context, adminID string, assigned int) error {
+	for _, q := range m.SellerQuotas {
+		if assigned < q.UsedFreeQuota {
+			return models.NewBadRequestError(fmt.Sprintf("cannot reduce free quota to %d for all sellers: maximum used free quota is %d", assigned, q.UsedFreeQuota), nil)
+		}
+	}
 	for _, q := range m.SellerQuotas {
 		q.AssignedFreeQuota = assigned
 	}
@@ -278,6 +295,7 @@ func (m *MockPriceRepository) GetAllActivePrices(ctx context.Context) (map[model
 // MockTicketRepository implements repository.TicketRepository
 type MockTicketRepository struct {
 	Tickets         map[string]*models.Ticket
+	Buyers          map[string]*models.Buyer
 	Validations     []*models.TicketValidation
 	ExistingCodes   map[string]bool
 	FailBeginTx     bool
@@ -287,6 +305,7 @@ type MockTicketRepository struct {
 func NewMockTicketRepository() *MockTicketRepository {
 	return &MockTicketRepository{
 		Tickets:       make(map[string]*models.Ticket),
+		Buyers:        make(map[string]*models.Buyer),
 		Validations:   make([]*models.TicketValidation, 0),
 		ExistingCodes: make(map[string]bool),
 	}
@@ -303,7 +322,10 @@ func (m *MockTicketRepository) CreateBuyer(ctx context.Context, buyer *models.Bu
 	if m.FailCreateBuyer {
 		return errors.New("buyer error")
 	}
-	buyer.ID = "buyer-uuid-123"
+	if buyer.ID == "" {
+		buyer.ID = fmt.Sprintf("buyer-uuid-%d", len(m.Buyers)+1)
+	}
+	m.Buyers[buyer.ID] = buyer
 	return nil
 }
 

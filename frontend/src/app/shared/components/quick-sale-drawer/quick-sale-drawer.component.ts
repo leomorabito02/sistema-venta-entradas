@@ -38,6 +38,7 @@ export class QuickSaleDrawerComponent implements OnChanges {
   lastName = '';
   phone = '';
   email = '';
+  idempotencyKey = crypto.randomUUID();
 
   personalQuotaRemaining = signal<number | null>(null);
   personalQuotaTotal = signal<number | null>(null);
@@ -127,6 +128,7 @@ export class QuickSaleDrawerComponent implements OnChanges {
 
     this.loading = true;
     const payload: CreateTicketRequest = {
+      idempotency_key: this.idempotencyKey,
       ticket_type: this.ticketType,
       sale_source: this.saleSource,
       quota_source: this.saleSource === 'ANTICIPADA' ? this.quotaSource : undefined,
@@ -140,6 +142,7 @@ export class QuickSaleDrawerComponent implements OnChanges {
       next: (resp) => {
         this.loading = false;
         if (resp.success && resp.data) {
+          this.idempotencyKey = crypto.randomUUID();
           this.createdTicket = resp.data;
           this.generateQrCode();
           this.toastService.success('¡Entrada generada con éxito!');
@@ -281,6 +284,7 @@ export class QuickSaleDrawerComponent implements OnChanges {
   }
 
   resetForm(): void {
+    this.idempotencyKey = crypto.randomUUID();
     this.createdTicket = null;
     this.qrDataUrl = null;
     this.authorizing = false;

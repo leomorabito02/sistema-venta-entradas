@@ -16,6 +16,8 @@ import (
 	"backend/internal/dto"
 	"backend/internal/models"
 	"backend/internal/repository"
+
+	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -23,6 +25,7 @@ const (
 	cacheKeyTicketsList  = "tickets:list:"
 	cacheKeyTicketPublic = "ticket:public:"
 	cacheKeyPricesActive = "prices:active"
+	cacheKeyIdempotency  = "idempotency:"
 )
 
 type TicketService interface {
@@ -41,6 +44,7 @@ type ticketService struct {
 	priceRepo    repository.PriceRepository
 	userRepo     repository.UserRepository
 	cacheService cache.CacheService
+	reqGroup     singleflight.Group
 }
 
 func NewTicketService(
@@ -66,11 +70,51 @@ func NewTicketService(
 }
 
 func (s *ticketService) CreateTicket(ctx context.Context, sellerID string, req *dto.CreateTicketRequest) (*dto.TicketResponse, error) {
+	if req == nil {
+		return nil, models.NewBadRequestError("Request cannot be nil", nil)
+	}
+	reqCopy := *req
+	req = &reqCopy
+
 	// Validate input
 	if err := req.Validate(); err != nil {
 		return nil, models.NewBadRequestError("Invalid request payload", err)
 	}
 
+	if req.IdempotencyKey == "" {
+		return s.executeCreateTicket(ctx, sellerID, req)
+	}
+
+	cacheKey := cacheKeyIdempotency + sellerID + ":" + req.IdempotencyKey
+	if cached, found := s.cacheService.Get(ctx, cacheKey); found {
+		if resp, ok := cached.(*dto.TicketResponse); ok {
+			return resp, nil
+		}
+	}
+
+	res, err, _ := s.reqGroup.Do(cacheKey, func() (interface{}, error) {
+		if cached, found := s.cacheService.Get(ctx, cacheKey); found {
+			if resp, ok := cached.(*dto.TicketResponse); ok {
+				return resp, nil
+			}
+		}
+
+		resp, err := s.executeCreateTicket(ctx, sellerID, req)
+		if err != nil {
+			return nil, err
+		}
+
+		s.cacheService.Set(ctx, cacheKey, resp, 24*time.Hour)
+		return resp, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return res.(*dto.TicketResponse), nil
+}
+
+func (s *ticketService) executeCreateTicket(ctx context.Context, sellerID string, req *dto.CreateTicketRequest) (*dto.TicketResponse, error) {
 	seller, err := s.userRepo.GetByID(ctx, sellerID)
 	if err != nil {
 		return nil, models.NewNotFoundError("Seller not found", err)

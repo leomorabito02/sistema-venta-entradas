@@ -99,10 +99,16 @@ func TestQuotaService_SetQuotaValidations(t *testing.T) {
 	if err := svc.SetSellerQuota(ctx, "admin-id", "seller-uuid-1", 30); err != nil {
 		t.Errorf("Unexpected error setting seller quota: %v", err)
 	}
+	if err := svc.SetSellerQuota(ctx, "admin-id", "seller-uuid-1", 4); err == nil {
+		t.Errorf("Expected error when reducing personal quota below used quota (5)")
+	}
 
 	// SetAllSellersPersonalQuota validations
 	if err := svc.SetAllSellersPersonalQuota(ctx, "admin-id", -5); err == nil {
 		t.Errorf("Expected error for negative assigned quota")
+	}
+	if err := svc.SetAllSellersPersonalQuota(ctx, "admin-id", 3); err == nil {
+		t.Errorf("Expected error when reducing all sellers personal quota below max used (5)")
 	}
 	if err := svc.SetAllSellersPersonalQuota(ctx, "admin-id", 25); err != nil {
 		t.Errorf("Unexpected error setting all seller personal quota: %v", err)
@@ -122,6 +128,9 @@ func TestQuotaService_SetQuotaValidations(t *testing.T) {
 	}
 	if err := svc.SetSellerFreeQuota(ctx, "admin-id", "seller-uuid-1", -1); err == nil {
 		t.Errorf("Expected error for negative assigned free quota")
+	}
+	if err := svc.SetSellerFreeQuota(ctx, "admin-id", "seller-uuid-1", 1); err == nil {
+		t.Errorf("Expected error when reducing free quota below used free quota (2)")
 	}
 	if err := svc.SetSellerFreeQuota(ctx, "admin-id", "seller-uuid-1", 10); err != nil {
 		t.Errorf("Unexpected error setting seller free quota: %v", err)

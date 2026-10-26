@@ -47,6 +47,13 @@ func (c *TicketController) CreateTicket(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	if req.IdempotencyKey == "" {
+		req.IdempotencyKey = r.Header.Get("Idempotency-Key")
+		if req.IdempotencyKey == "" {
+			req.IdempotencyKey = r.Header.Get("X-Idempotency-Key")
+		}
+	}
+
 	if err := req.Validate(); err != nil {
 		c.jsonView.Error(w, http.StatusBadRequest, err.Error(), err)
 		return

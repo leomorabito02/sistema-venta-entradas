@@ -13,16 +13,22 @@ var phoneRegex = regexp.MustCompile(`^[0-9+\-\s()]{6,20}$`)
 var fourDigitCodeRegex = regexp.MustCompile(`^[0-9]{4}$`)
 
 type CreateTicketRequest struct {
-	TicketType  models.TicketType  `json:"ticket_type"`
-	SaleSource  models.SaleSource  `json:"sale_source"`
-	QuotaSource models.QuotaSource `json:"quota_source,omitempty"`
-	FirstName   string             `json:"first_name"`
-	LastName    string             `json:"last_name"`
-	Phone       string             `json:"phone"`
-	Email       *string            `json:"email,omitempty"`
+	IdempotencyKey string             `json:"idempotency_key,omitempty"`
+	TicketType     models.TicketType  `json:"ticket_type"`
+	SaleSource     models.SaleSource  `json:"sale_source"`
+	QuotaSource    models.QuotaSource `json:"quota_source,omitempty"`
+	FirstName      string             `json:"first_name"`
+	LastName       string             `json:"last_name"`
+	Phone          string             `json:"phone"`
+	Email          *string            `json:"email,omitempty"`
 }
 
 func (r *CreateTicketRequest) Validate() error {
+	r.IdempotencyKey = strings.TrimSpace(r.IdempotencyKey)
+	if len(r.IdempotencyKey) > 128 {
+		return fmt.Errorf("idempotency_key cannot exceed 128 characters")
+	}
+
 	r.FirstName = strings.TrimSpace(r.FirstName)
 	r.LastName = strings.TrimSpace(r.LastName)
 	r.Phone = strings.TrimSpace(r.Phone)

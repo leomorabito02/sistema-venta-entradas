@@ -165,26 +165,42 @@ func TestQuotaRepository_SetSellerQuota(t *testing.T) {
 	repo := NewQuotaRepository(db)
 	ctx := context.Background()
 
-	mock.ExpectBegin()
-	rows := sqlmock.NewRows([]string{"assigned_quota"}).AddRow(10)
-	mock.ExpectQuery(`SELECT assigned_quota FROM seller_quotas WHERE seller_id = \$1 FOR UPDATE`).
-		WithArgs("seller-1").
-		WillReturnRows(rows)
+	t.Run("Success", func(t *testing.T) {
+		mock.ExpectBegin()
+		rows := sqlmock.NewRows([]string{"assigned_quota", "used_quota"}).AddRow(10, 5)
+		mock.ExpectQuery(`SELECT assigned_quota, used_quota FROM seller_quotas WHERE seller_id = \$1 FOR UPDATE`).
+			WithArgs("seller-1").
+			WillReturnRows(rows)
 
-	mock.ExpectExec(`UPDATE seller_quotas SET assigned_quota = \$1, updated_at = NOW\(\) WHERE seller_id = \$2`).
-		WithArgs(25, "seller-1").
-		WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectExec(`UPDATE seller_quotas SET assigned_quota = \$1, updated_at = NOW\(\) WHERE seller_id = \$2`).
+			WithArgs(25, "seller-1").
+			WillReturnResult(sqlmock.NewResult(0, 1))
 
-	mock.ExpectExec(`INSERT INTO quota_audit_logs`).
-		WithArgs("admin-1", "seller-1", 10, 25).
-		WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectExec(`INSERT INTO quota_audit_logs`).
+			WithArgs("admin-1", "seller-1", 10, 25).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 
-	mock.ExpectCommit()
+		mock.ExpectCommit()
 
-	err = repo.SetSellerQuota(ctx, "admin-1", "seller-1", 25)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+		err = repo.SetSellerQuota(ctx, "admin-1", "seller-1", 25)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+	})
+
+	t.Run("CannotReduceBelowUsed", func(t *testing.T) {
+		mock.ExpectBegin()
+		rows := sqlmock.NewRows([]string{"assigned_quota", "used_quota"}).AddRow(10, 8)
+		mock.ExpectQuery(`SELECT assigned_quota, used_quota FROM seller_quotas WHERE seller_id = \$1 FOR UPDATE`).
+			WithArgs("seller-1").
+			WillReturnRows(rows)
+		mock.ExpectRollback()
+
+		err = repo.SetSellerQuota(ctx, "admin-1", "seller-1", 5)
+		if err == nil {
+			t.Fatalf("expected error when reducing quota below used amount")
+		}
+	})
 }
 
 func TestQuotaRepository_SetAllSellersPersonalQuota(t *testing.T) {
@@ -197,26 +213,42 @@ func TestQuotaRepository_SetAllSellersPersonalQuota(t *testing.T) {
 	repo := NewQuotaRepository(db)
 	ctx := context.Background()
 
-	mock.ExpectBegin()
+	t.Run("Success", func(t *testing.T) {
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(used_quota\), 0\) FROM seller_quotas`).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(10))
 
-	mock.ExpectExec(`INSERT INTO default_quota_configs`).
-		WithArgs(20).
-		WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectExec(`INSERT INTO default_quota_configs`).
+			WithArgs(20).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 
-	mock.ExpectExec(`INSERT INTO seller_quotas`).
-		WithArgs(20).
-		WillReturnResult(sqlmock.NewResult(0, 2))
+		mock.ExpectExec(`INSERT INTO seller_quotas`).
+			WithArgs(20).
+			WillReturnResult(sqlmock.NewResult(0, 2))
 
-	mock.ExpectExec(`INSERT INTO quota_audit_logs`).
-		WithArgs("admin-1", 20).
-		WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectExec(`INSERT INTO quota_audit_logs`).
+			WithArgs("admin-1", 20).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 
-	mock.ExpectCommit()
+		mock.ExpectCommit()
 
-	err = repo.SetAllSellersPersonalQuota(ctx, "admin-1", 20)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+		err = repo.SetAllSellersPersonalQuota(ctx, "admin-1", 20)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+	})
+
+	t.Run("CannotReduceBelowMaxUsed", func(t *testing.T) {
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(used_quota\), 0\) FROM seller_quotas`).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(25))
+		mock.ExpectRollback()
+
+		err = repo.SetAllSellersPersonalQuota(ctx, "admin-1", 20)
+		if err == nil {
+			t.Fatalf("expected error when reducing all sellers quota below max used amount")
+		}
+	})
 }
 
 func TestQuotaRepository_GetDefaultQuotaConfig(t *testing.T) {
@@ -251,26 +283,42 @@ func TestQuotaRepository_SetSellerFreeQuota(t *testing.T) {
 	repo := NewQuotaRepository(db)
 	ctx := context.Background()
 
-	mock.ExpectBegin()
-	rows := sqlmock.NewRows([]string{"assigned_free_quota"}).AddRow(5)
-	mock.ExpectQuery(`SELECT assigned_free_quota FROM seller_quotas WHERE seller_id = \$1 FOR UPDATE`).
-		WithArgs("seller-1").
-		WillReturnRows(rows)
+	t.Run("Success", func(t *testing.T) {
+		mock.ExpectBegin()
+		rows := sqlmock.NewRows([]string{"assigned_free_quota", "used_free_quota"}).AddRow(5, 2)
+		mock.ExpectQuery(`SELECT assigned_free_quota, used_free_quota FROM seller_quotas WHERE seller_id = \$1 FOR UPDATE`).
+			WithArgs("seller-1").
+			WillReturnRows(rows)
 
-	mock.ExpectExec(`UPDATE seller_quotas SET assigned_free_quota = \$1, updated_at = NOW\(\) WHERE seller_id = \$2`).
-		WithArgs(10, "seller-1").
-		WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectExec(`UPDATE seller_quotas SET assigned_free_quota = \$1, updated_at = NOW\(\) WHERE seller_id = \$2`).
+			WithArgs(10, "seller-1").
+			WillReturnResult(sqlmock.NewResult(0, 1))
 
-	mock.ExpectExec(`INSERT INTO quota_audit_logs`).
-		WithArgs("admin-1", "seller-1", 5, 10).
-		WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectExec(`INSERT INTO quota_audit_logs`).
+			WithArgs("admin-1", "seller-1", 5, 10).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 
-	mock.ExpectCommit()
+		mock.ExpectCommit()
 
-	err = repo.SetSellerFreeQuota(ctx, "admin-1", "seller-1", 10)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+		err = repo.SetSellerFreeQuota(ctx, "admin-1", "seller-1", 10)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+	})
+
+	t.Run("CannotReduceBelowUsedFree", func(t *testing.T) {
+		mock.ExpectBegin()
+		rows := sqlmock.NewRows([]string{"assigned_free_quota", "used_free_quota"}).AddRow(5, 4)
+		mock.ExpectQuery(`SELECT assigned_free_quota, used_free_quota FROM seller_quotas WHERE seller_id = \$1 FOR UPDATE`).
+			WithArgs("seller-1").
+			WillReturnRows(rows)
+		mock.ExpectRollback()
+
+		err = repo.SetSellerFreeQuota(ctx, "admin-1", "seller-1", 2)
+		if err == nil {
+			t.Fatalf("expected error when reducing free quota below used amount")
+		}
+	})
 }
 
 func TestQuotaRepository_GetAllSellersQuotas(t *testing.T) {
@@ -334,28 +382,45 @@ func TestQuotaRepository_SetAllSellersFreeQuota(t *testing.T) {
 	repo := NewQuotaRepository(db)
 	ctx := context.Background()
 
-	mock.ExpectBegin()
-	mock.ExpectExec(`INSERT INTO default_quota_configs`).
-		WithArgs(10).
-		WillReturnResult(sqlmock.NewResult(0, 1))
+	t.Run("Success", func(t *testing.T) {
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(used_free_quota\), 0\) FROM seller_quotas`).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(5))
 
-	rows := sqlmock.NewRows([]string{"default_personal_quota"}).AddRow(15)
-	mock.ExpectQuery(`SELECT default_personal_quota FROM default_quota_configs WHERE id = 1`).
-		WillReturnRows(rows)
+		mock.ExpectExec(`INSERT INTO default_quota_configs`).
+			WithArgs(10).
+			WillReturnResult(sqlmock.NewResult(0, 1))
 
-	mock.ExpectExec(`INSERT INTO seller_quotas`).
-		WithArgs(15, 10).
-		WillReturnResult(sqlmock.NewResult(0, 2))
+		rows := sqlmock.NewRows([]string{"default_personal_quota"}).AddRow(15)
+		mock.ExpectQuery(`SELECT default_personal_quota FROM default_quota_configs WHERE id = 1`).
+			WillReturnRows(rows)
 
-	mock.ExpectExec(`INSERT INTO quota_audit_logs`).
-		WithArgs("admin-1", 10).
-		WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectCommit()
+		mock.ExpectExec(`INSERT INTO seller_quotas`).
+			WithArgs(15, 10).
+			WillReturnResult(sqlmock.NewResult(0, 2))
 
-	err = repo.SetAllSellersFreeQuota(ctx, "admin-1", 10)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+		mock.ExpectExec(`INSERT INTO quota_audit_logs`).
+			WithArgs("admin-1", 10).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+
+		err = repo.SetAllSellersFreeQuota(ctx, "admin-1", 10)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+	})
+
+	t.Run("CannotReduceBelowMaxUsedFree", func(t *testing.T) {
+		mock.ExpectBegin()
+		mock.ExpectQuery(`SELECT COALESCE\(MAX\(used_free_quota\), 0\) FROM seller_quotas`).
+			WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(15))
+		mock.ExpectRollback()
+
+		err = repo.SetAllSellersFreeQuota(ctx, "admin-1", 10)
+		if err == nil {
+			t.Fatalf("expected error when reducing all sellers free quota below max used amount")
+		}
+	})
 }
 
 func TestQuotaRepository_SetGlobalFreeQuota(t *testing.T) {
@@ -369,6 +434,9 @@ func TestQuotaRepository_SetGlobalFreeQuota(t *testing.T) {
 	ctx := context.Background()
 
 	mock.ExpectBegin()
+	mock.ExpectQuery(`SELECT COALESCE\(MAX\(used_free_quota\), 0\) FROM seller_quotas`).
+		WillReturnRows(sqlmock.NewRows([]string{"max"}).AddRow(5))
+
 	mock.ExpectExec(`INSERT INTO default_quota_configs`).
 		WithArgs(50).
 		WillReturnResult(sqlmock.NewResult(0, 1))
